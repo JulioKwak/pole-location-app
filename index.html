@@ -98,10 +98,14 @@
     let currentPoleNo = null;
     let currentHeading = null;
 
-    // GPS 좌표는 입력창과 분리해서 별도 보관
+    // GPS 상태값
     let currentGpsLat = null;
     let currentGpsLng = null;
     let currentGpsAccuracy = null;
+
+    // 중복 요청 방지용
+    let gpsRequestInProgress = false;
+    let headingEnabled = false;
 
     function initMap() {
       const center = new naver.maps.LatLng(37.4563, 126.7052);
@@ -121,7 +125,7 @@
         setClickMarker(lat, lng);
 
         document.getElementById("gpsStatus").textContent =
-          "지도 클릭 좌표를 입력칸에 반영했습니다. GPS 마커는 현재 위치를 유지합니다.";
+          "지도 클릭 좌표를 입력칸에 반영했습니다.";
       });
     }
 
@@ -208,6 +212,25 @@
         `,
         anchor: new naver.maps.Point(anchorX, anchorY)
       };
+    }
+
+    function clearClickMarker() {
+      if (clickMarker) {
+        clickMarker.setMap(null);
+        clickMarker = null;
+      }
+    }
+
+    function clearGpsVisuals() {
+      if (gpsMarker) {
+        gpsMarker.setMap(null);
+        gpsMarker = null;
+      }
+
+      if (gpsAccuracyCircle) {
+        gpsAccuracyCircle.setMap(null);
+        gpsAccuracyCircle = null;
+      }
     }
 
     function setMarker(lat, lng, title, isEstimated) {
@@ -449,22 +472,36 @@
         return;
       }
 
+      if (gpsRequestInProgress) {
+        return;
+      }
+
+      gpsRequestInProgress = true;
       document.getElementById("gpsStatus").textContent = "현재 위치를 가져오는 중입니다...";
       updateAccuracyWarning(null);
 
-      // iPhone Safari는 사용자 클릭 직후 방향 권한 요청해야 성공 확률이 높음
-      await enableDeviceHeading();
+      // 버튼을 다시 눌렀을 때도 새로 갱신되는 느낌을 주기 위해 기존 GPS 시각요소 먼저 제거
+      clearGpsVisuals();
+
+      // 방향 권한은 최초 1회만 시도
+      if (!headingEnabled) {
+        await enableDeviceHeading();
+      }
 
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          gpsRequestInProgress = false;
+
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           const acc = pos.coords.accuracy || null;
 
-          // GPS 전용 상태값 저장
           currentGpsLat = lat;
           currentGpsLng = lng;
           currentGpsAccuracy = acc;
+
+          // GPS 불러오기 성공 시 지도 클릭 마커 제거
+          clearClickMarker();
 
           document.getElementById("saveLat").value = lat.toFixed(7);
           document.getElementById("saveLng").value = lng.toFixed(7);
@@ -472,7 +509,9 @@
 
           setGpsMarker(lat, lng, currentHeading);
           setGpsAccuracyCircle(lat, lng, acc);
+
           map.setCenter(new naver.maps.LatLng(lat, lng));
+          map.setZoom(17);
 
           const accText = acc ? `정확도 약 ${Math.round(acc)}m` : "정확도 확인 불가";
           const headingText =
@@ -481,11 +520,12 @@
               : " / 방향값 없음";
 
           document.getElementById("gpsStatus").textContent =
-            `현재 GPS 위치 반영 완료 · ${accText}${headingText}`;
+            `현재 GPS 위치 갱신 완료 · ${accText}${headingText}`;
 
           updateAccuracyWarning(acc);
         },
         (err) => {
+          gpsRequestInProgress = false;
           document.getElementById("gpsStatus").textContent =
             "현재 위치를 가져오지 못했습니다: " + err.message;
           updateAccuracyWarning(null);
@@ -525,6 +565,8 @@
 
       window.addEventListener("deviceorientation", handleOrientation, true);
       window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+
+      headingEnabled = true;
     }
 
     function handleOrientation(event) {
@@ -536,7 +578,6 @@
 
       currentHeading = heading;
 
-      // 입력창 좌표가 아니라 실제 GPS 좌표 상태값으로 갱신
       if (currentGpsLat !== null && currentGpsLng !== null) {
         setGpsMarker(currentGpsLat, currentGpsLng, currentHeading);
       }
@@ -544,7 +585,7 @@
       const accText = currentGpsAccuracy ? `정확도 약 ${Math.round(currentGpsAccuracy)}m` : "정확도 확인 불가";
 
       document.getElementById("gpsStatus").textContent =
-        `현재 GPS 위치 반영 완료 · ${accText} / 방향 ${Math.round(currentHeading)}°`;
+        `현재 GPS 위치 갱신 완료 · ${accText} / 방향 ${Math.round(currentHeading)}°`;
     }
 
     async function saveCoordinate() {
