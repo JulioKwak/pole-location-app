@@ -123,6 +123,24 @@ button:disabled{
   color: #444;
 }
 
+.accuracy-warning{
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.warn-ok{
+  color: #2e7d32;
+}
+
+.warn-mid{
+  color: #ef6c00;
+}
+
+.warn-high{
+  color: #d84315;
+}
+
 .map-wrapper{
   position: relative;
 }
@@ -173,6 +191,10 @@ button:disabled{
 
 .legend-dot.estimated{
   background: #ef6c00;
+}
+
+.legend-dot.gps{
+  background: #e53935;
 }
 
 .legend-dot.input{
