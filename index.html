@@ -30,6 +30,40 @@
       전주번호를 입력한 뒤 조회하세요.
     </div>
 
+    <!-- 조회용 원점 상태 / 수동선택 -->
+    <div class="save-box" id="originBox">
+      <h3>원점 선택</h3>
+
+      <div class="helper" id="originStatus">
+        조회 시 현재 위치를 기준으로 가장 가까운 원점을 자동 선택합니다.
+      </div>
+
+      <div id="originManualWrap" style="display:none; margin-top:10px;">
+        <div class="helper" style="margin-bottom:8px;">
+          원점을 찾지 못했습니다. 원점을 선택해주세요.
+        </div>
+
+        <div class="button-row" style="flex-wrap:wrap;">
+          <label style="display:flex; align-items:center; gap:6px;">
+            <input type="radio" name="manualOrigin" value="1">
+            원점1 (오산)
+          </label>
+          <label style="display:flex; align-items:center; gap:6px;">
+            <input type="radio" name="manualOrigin" value="2">
+            원점2 (태백)
+          </label>
+          <label style="display:flex; align-items:center; gap:6px;">
+            <input type="radio" name="manualOrigin" value="3">
+            원점3 (담양)
+          </label>
+          <label style="display:flex; align-items:center; gap:6px;">
+            <input type="radio" name="manualOrigin" value="4">
+            원점4 (양산)
+          </label>
+        </div>
+      </div>
+    </div>
+
     <div class="save-box">
       <h3>좌표 등록</h3>
 
@@ -98,14 +132,24 @@
     let currentPoleNo = null;
     let currentHeading = null;
 
-    // GPS 상태값
+    // 좌표 등록용 GPS 상태
     let currentGpsLat = null;
     let currentGpsLng = null;
     let currentGpsAccuracy = null;
 
-    // 중복 요청 방지용
+    // 조회용 최근 상태
+    let lastSearchGps = null;
+    let lastSelectedOrigin = null;
+
     let gpsRequestInProgress = false;
     let headingEnabled = false;
+
+    const ORIGIN_LABELS = {
+      "1": "원점1 (오산)",
+      "2": "원점2 (태백)",
+      "3": "원점3 (담양)",
+      "4": "원점4 (양산)"
+    };
 
     function initMap() {
       const center = new naver.maps.LatLng(37.4563, 126.7052);
@@ -327,8 +371,41 @@
       });
     }
 
+    function getSelectedManualOrigin() {
+      const checked = document.querySelector('input[name="manualOrigin"]:checked');
+      return checked ? checked.value : null;
+    }
+
+    function setSelectedManualOrigin(originCode) {
+      const radios = document.querySelectorAll('input[name="manualOrigin"]');
+      radios.forEach((radio) => {
+        radio.checked = String(radio.value) === String(originCode);
+      });
+    }
+
+    function showManualOriginSelector(message = "원점을 찾지 못했습니다. 원점을 선택해주세요.") {
+      const wrap = document.getElementById("originManualWrap");
+      wrap.style.display = "block";
+      document.getElementById("originStatus").textContent = message;
+    }
+
+    function hideManualOriginSelector(message = "조회 시 현재 위치를 기준으로 가장 가까운 원점을 자동 선택합니다.") {
+      const wrap = document.getElementById("originManualWrap");
+      wrap.style.display = "none";
+      document.getElementById("originStatus").textContent = message;
+    }
+
+    function buildOriginText(origin) {
+      if (!origin) return "-";
+
+      const codeText = origin.code ? `원점${origin.code}` : "원점";
+      const nameText = origin.name ? ` (${origin.name})` : "";
+      return `${codeText}${nameText}`;
+    }
+
     function renderInfo(data) {
       const box = document.getElementById("infoBox");
+      const selectedOrigin = data?.estimation_detail?.origin || null;
 
       const sourceBadge = data.coordinate
         ? (
@@ -345,14 +422,21 @@
           <div class="row"><span class="label">위도</span>${data.coordinate.latitude}</div>
           <div class="row"><span class="label">경도</span>${data.coordinate.longitude}</div>
           <div class="row"><span class="label">좌표출처</span>${data.coordinate_source || "-"}</div>
+          <div class="row"><span class="label">선택원점</span>${buildOriginText(selectedOrigin)}</div>
           ${
             data.is_estimated
               ? `
                 <div class="row"><span class="label">추정신뢰도</span>${data.coordinate.confidence_score ?? "-"}</div>
                 <div class="row"><span class="label">후보 개수</span>${data.coordinate.candidate_count ?? "-"}</div>
+                <div class="row"><span class="label">보정적용</span>${data.estimation_detail?.correction_applied ? "예" : "아니오"}</div>
               `
               : ""
           }
+        `;
+      } else {
+        coordHtml = `
+          <div class="row"><span class="label">좌표</span>없음</div>
+          <div class="row"><span class="label">선택원점</span>${buildOriginText(selectedOrigin)}</div>
         `;
       }
 
@@ -369,6 +453,7 @@
 
     function renderNoCoordinateGuide(data) {
       const box = document.getElementById("infoBox");
+      const selectedOrigin = data?.estimation_detail?.origin || null;
 
       box.innerHTML = `
         <div class="row"><span class="label">전주번호</span>${data.pole_no}</div>
@@ -377,6 +462,7 @@
         <div class="row"><span class="label">권역</span>${data.region_code}</div>
         <div class="row"><span class="label">번호유형</span>${data.pole_type || "-"}</div>
         <div class="row"><span class="label">파싱상태</span>${data.parse_status || "-"}</div>
+        <div class="row"><span class="label">선택원점</span>${buildOriginText(selectedOrigin)}</div>
 
         <div class="guide-title">추정 기준 좌표 부족!</div>
         <div class="guide-text">
@@ -424,33 +510,111 @@
       }
     }
 
+    function resetSaveForm() {
+      document.getElementById("saveLat").value = "";
+      document.getElementById("saveLng").value = "";
+      document.getElementById("saveAccuracy").value = "";
+      document.getElementById("saveObserver").value = "";
+      document.getElementById("saveMemo").value = "";
+
+      document.getElementById("gpsStatus").textContent = "";
+      document.getElementById("accuracyWarning").textContent = "";
+      document.getElementById("accuracyWarning").className = "accuracy-warning";
+
+      currentGpsLat = null;
+      currentGpsLng = null;
+      currentGpsAccuracy = null;
+      currentHeading = null;
+
+      clearClickMarker();
+      clearGpsVisuals();
+    }
+
+    function getCurrentPositionForSearch() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+          resolve(null);
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            resolve({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              accuracy: pos.coords.accuracy || null
+            });
+          },
+          () => {
+            resolve(null);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+          }
+        );
+      });
+    }
+
     async function searchPole() {
       const pole = document.getElementById("poleInput").value.trim().toUpperCase();
-
+    
       if (!pole) {
         alert("전주번호를 입력하세요.");
         return;
       }
-
+    
       showLoading();
-
+    
       try {
-        const res = await fetch(`${API_BASE}/api/pole?no=${encodeURIComponent(pole)}`);
+        const liveGps = await getCurrentPositionForSearch();
+        lastSearchGps = liveGps;
+    
+        let apiUrl = `${API_BASE}/api/pole?no=${encodeURIComponent(pole)}`;
+    
+        if (liveGps && liveGps.lat != null && liveGps.lng != null) {
+          apiUrl += `&lat=${encodeURIComponent(liveGps.lat)}&lng=${encodeURIComponent(liveGps.lng)}`;
+    
+          const accText = liveGps.accuracy ? `정확도 약 ${Math.round(liveGps.accuracy)}m` : "정확도 확인 불가";
+          hideManualOriginSelector(`조회 기준 현재 위치 사용 · ${accText}`);
+        } else {
+          const manualOrigin = getSelectedManualOrigin();
+    
+          if (!manualOrigin) {
+            hideLoading();
+            showManualOriginSelector("원점을 찾지 못했습니다. 원점을 선택해주세요.");
+            return;
+          }
+    
+          apiUrl += `&origin=${encodeURIComponent(manualOrigin)}`;
+          showManualOriginSelector(`${ORIGIN_LABELS[manualOrigin]} 기준으로 조회합니다.`);
+        }
+    
+        const res = await fetch(apiUrl);
         const json = await res.json();
-
+    
         hideLoading();
-
+    
         if (!json.ok) {
           alert(json.error || "조회 실패");
           return;
         }
-
+    
         const data = json.data;
         currentPoleNo = data.pole_no;
-
+        lastSelectedOrigin = data?.estimation_detail?.origin || null;
+    
+        if (!liveGps && lastSelectedOrigin && lastSelectedOrigin.code) {
+          setSelectedManualOrigin(lastSelectedOrigin.code);
+          showManualOriginSelector(`${buildOriginText(lastSelectedOrigin)} 기준으로 조회했습니다. 필요 시 다른 원점을 선택해 다시 조회하세요.`);
+        } else if (liveGps && lastSelectedOrigin) {
+          hideManualOriginSelector(`자동 선택 원점: ${buildOriginText(lastSelectedOrigin)}`);
+        }
+    
         if (data.coordinate) {
           renderInfo(data);
-
+    
           setMarker(
             Number(data.coordinate.latitude),
             Number(data.coordinate.longitude),
@@ -480,10 +644,8 @@
       document.getElementById("gpsStatus").textContent = "현재 위치를 가져오는 중입니다...";
       updateAccuracyWarning(null);
 
-      // 버튼을 다시 눌렀을 때도 새로 갱신되는 느낌을 주기 위해 기존 GPS 시각요소 먼저 제거
       clearGpsVisuals();
 
-      // 방향 권한은 최초 1회만 시도
       if (!headingEnabled) {
         await enableDeviceHeading();
       }
@@ -500,7 +662,6 @@
           currentGpsLng = lng;
           currentGpsAccuracy = acc;
 
-          // GPS 불러오기 성공 시 지도 클릭 마커 제거
           clearClickMarker();
 
           document.getElementById("saveLat").value = lat.toFixed(7);
@@ -644,26 +805,6 @@
         alert("저장 중 오류가 발생했습니다: " + err.message);
       }
     }
-
-    function resetSaveForm() {
-  document.getElementById("saveLat").value = "";
-  document.getElementById("saveLng").value = "";
-  document.getElementById("saveAccuracy").value = "";
-  document.getElementById("saveObserver").value = "";
-  document.getElementById("saveMemo").value = "";
-
-  document.getElementById("gpsStatus").textContent = "";
-  document.getElementById("accuracyWarning").textContent = "";
-  document.getElementById("accuracyWarning").className = "accuracy-warning";
-
-  currentGpsLat = null;
-  currentGpsLng = null;
-  currentGpsAccuracy = null;
-  currentHeading = null;
-
-  clearClickMarker();
-  clearGpsVisuals();
-}
 
     document.getElementById("poleInput").addEventListener("keydown", function (e) {
       if (e.key === "Enter") {
