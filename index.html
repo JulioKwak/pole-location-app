@@ -5,521 +5,437 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>전주 위치 조회</title>
 
+  <link rel="stylesheet" href="./style.css">
+
   <!-- 네이버 지도 -->
   <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=ql4o2776tv"></script>
-
-  <style>
-    body{
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      background: #f5f5f5;
-      color: #222;
-    }
-
-    .container{
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-
-    h2, h3{
-      margin-top: 0;
-    }
-
-    .search{
-      display: flex;
-      gap: 10px;
-      margin-bottom: 15px;
-    }
-
-    input,
-    textarea{
-      padding: 12px;
-      font-size: 16px;
-      box-sizing: border-box;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      background: #fff;
-    }
-
-    input:focus,
-    textarea:focus{
-      outline: none;
-      border-color: #1565c0;
-      box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.12);
-    }
-
-    button{
-      padding: 12px 16px;
-      font-size: 15px;
-      cursor: pointer;
-      border: 1px solid #bbb;
-      border-radius: 6px;
-      background: #fff;
-    }
-
-    button:hover{
-      background: #f0f0f0;
-    }
-
-    #poleInput{
-      flex: 1;
-    }
-
-    .info,
-    .save-box{
-      background: #fff;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      border: 1px solid #ddd;
-    }
-
-    .row{
-      margin-bottom: 8px;
-      line-height: 1.5;
-    }
-
-    .row:last-child{
-      margin-bottom: 0;
-    }
-
-    .label{
-      font-weight: bold;
-      width: 145px;
-      display: inline-block;
-    }
-
-    .save-grid{
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-
-    .full{
-      grid-column: 1 / -1;
-      width: 100%;
-    }
-
-    .notice{
-      font-size: 14px;
-      color: #555;
-      margin-top: 8px;
-    }
-
-    .map-wrapper{
-      position: relative;
-    }
-
-    #map{
-      width: 100%;
-      height: 520px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      background: #eee;
-    }
-
-    .legend{
-      position: absolute;
-      bottom: 15px;
-      left: 15px;
-      background: rgba(255, 255, 255, 0.96);
-      padding: 10px 12px;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-      font-size: 13px;
-      z-index: 10;
-    }
-
-    .legend-item{
-      display: flex;
-      align-items: center;
-      margin-bottom: 6px;
-      line-height: 1.4;
-    }
-
-    .legend-item:last-child{
-      margin-bottom: 0;
-    }
-
-    .legend-dot{
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      display: inline-block;
-      margin-right: 8px;
-      flex: 0 0 12px;
-    }
-
-    .legend-dot.real{
-      background: #1565c0;
-    }
-
-    .legend-dot.estimated{
-      background: #ef6c00;
-    }
-
-    .badge{
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 13px;
-      margin-left: 8px;
-      vertical-align: middle;
-    }
-
-    .badge-exact{
-      background: #e3f2fd;
-      color: #1565c0;
-    }
-
-    .badge-est{
-      background: #fff3e0;
-      color: #ef6c00;
-    }
-
-    .helper{
-      margin-top: 8px;
-      font-size: 13px;
-      color: #666;
-    }
-
-    @media (max-width: 768px){
-      body{
-        padding: 12px;
-      }
-
-      .search{
-        flex-direction: column;
-      }
-
-      .save-grid{
-        grid-template-columns: 1fr;
-      }
-
-      .label{
-        width: 110px;
-      }
-
-      #map{
-        height: 420px;
-      }
-
-      .legend{
-        left: 10px;
-        right: 10px;
-        bottom: 10px;
-        font-size: 12px;
-      }
-    }
-  </style>
 </head>
 <body>
+  <div class="container">
+    <h2>전주 위치 조회</h2>
 
-<div class="container">
-  <h2>전주 위치 조회</h2>
-
-  <div class="search">
-    <input id="poleInput" placeholder="전주번호 입력 (예: 8927Y621)">
-    <button onclick="searchPole()">조회</button>
-  </div>
-
-  <div class="info" id="infoBox">
-    전주번호를 입력하세요.
-  </div>
-
-  <div class="save-box">
-    <h3>좌표 등록</h3>
-
-    <div class="save-grid">
-      <input id="saveLat" placeholder="위도">
-      <input id="saveLng" placeholder="경도">
-
-      <input id="saveAccuracy" placeholder="정확도(m), 예: 10">
-      <input id="saveObserver" placeholder="등록자명(선택)">
-
-      <textarea id="saveMemo" class="full" placeholder="메모(선택)" rows="3"></textarea>
+    <div class="search">
+      <input id="poleInput" placeholder="전주번호 입력 (예: 8927Y621)">
+      <button id="searchBtn" onclick="searchPole()">조회</button>
     </div>
 
-    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-      <button onclick="fillCurrentLocation()">현재 GPS 불러오기</button>
-      <button onclick="saveCoordinate()">좌표 저장</button>
-    </div>
-
-    <div class="notice">
-      조회한 전주번호 기준으로 현재 입력된 좌표를 저장합니다.
-    </div>
-    <div class="helper">
-      지도 클릭 시 위도/경도가 자동 입력됩니다.
-    </div>
-  </div>
-
-  <div class="map-wrapper">
-    <div id="map"></div>
-
-    <div class="legend">
-      <div class="legend-item">
-        <span class="legend-dot real"></span>
-        실좌표 (현장 등록 / 검증 좌표)
-      </div>
-      <div class="legend-item">
-        <span class="legend-dot estimated"></span>
-        추정 좌표 (참고용)
+    <div class="info" id="loadingBox" style="display:none;">
+      <div class="loading-inline">
+        <span>조회 중</span>
+        <span class="dots"><span>.</span><span>.</span><span>.</span></span>
       </div>
     </div>
+
+    <div class="info" id="infoBox">
+      전주번호를 입력한 뒤 조회하세요.
+    </div>
+
+    <div class="save-box">
+      <h3>좌표 등록</h3>
+
+      <div class="save-grid">
+        <input id="saveLat" placeholder="위도">
+        <input id="saveLng" placeholder="경도">
+
+        <input id="saveAccuracy" placeholder="정확도(m), 예: 10">
+        <input id="saveObserver" placeholder="등록자명(선택)">
+
+        <textarea id="saveMemo" class="full" placeholder="메모(선택)" rows="3"></textarea>
+      </div>
+
+      <div class="button-row">
+        <button onclick="fillCurrentLocation()">현재 GPS 불러오기</button>
+        <button onclick="saveCoordinate()">좌표 저장</button>
+      </div>
+
+      <div class="notice">
+        조회한 전주번호 기준으로 현재 입력된 좌표를 저장합니다.
+      </div>
+      <div class="helper">
+        지도 클릭 시 위도/경도가 자동 입력됩니다. 정확도는 30m 이하 권장, 100m 이상이면 재측정을 권장합니다.
+      </div>
+      <div class="gps-status" id="gpsStatus"></div>
+    </div>
+
+    <div class="map-wrapper">
+      <div id="map"></div>
+
+      <div class="legend">
+        <div class="legend-item">
+          <span class="legend-dot real"></span>
+          실좌표 (현장 등록 / 검증 좌표)
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot estimated"></span>
+          추정 좌표 (참고용)
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot input"></span>
+          입력 중 좌표 (GPS / 지도 클릭)
+        </div>
+      </div>
+    </div>
   </div>
-</div>
 
-<script>
-  const API_BASE = "https://pole-location-api.junho-9ba.workers.dev";
+  <script>
+    const API_BASE = "https://pole-location-api.junho-9ba.workers.dev";
 
-  let map;
-  let marker;
-  let clickMarker;
-  let currentPoleNo = null;
+    let map;
+    let marker;
+    let clickMarker;
+    let liveMarker;
+    let accuracyCircle;
+    let watchId = null;
+    let currentPoleNo = null;
 
-  function initMap(){
-    const center = new naver.maps.LatLng(37.4563, 126.7052);
+    function initMap() {
+      const center = new naver.maps.LatLng(37.4563, 126.7052);
 
-    map = new naver.maps.Map("map", {
-      center,
-      zoom: 12
-    });
+      map = new naver.maps.Map("map", {
+        center,
+        zoom: 12
+      });
 
-    // 지도 클릭 시 위경도 자동 입력
-    naver.maps.Event.addListener(map, "click", function(e) {
-      const lat = e.coord.lat();
-      const lng = e.coord.lng();
-
-      document.getElementById("saveLat").value = lat.toFixed(7);
-      document.getElementById("saveLng").value = lng.toFixed(7);
-
-      setClickMarker(lat, lng);
-    });
-  }
-
-  function setMarker(lat, lng, title, isEstimated){
-    const pos = new naver.maps.LatLng(lat, lng);
-
-    if (marker) {
-      marker.setMap(null);
-    }
-
-    const iconColor = isEstimated ? "#ef6c00" : "#1565c0";
-
-    marker = new naver.maps.Marker({
-      position: pos,
-      map: map,
-      title: title,
-      icon: {
-        content: `
-          <div style="
-            width:16px;
-            height:16px;
-            background:${iconColor};
-            border-radius:50%;
-            border:2px solid white;
-            box-shadow:0 0 4px rgba(0,0,0,0.6);
-          "></div>
-        `,
-        anchor: new naver.maps.Point(8, 8)
-      }
-    });
-
-    map.setCenter(pos);
-    map.setZoom(17);
-  }
-
-  function setClickMarker(lat, lng){
-    const pos = new naver.maps.LatLng(lat, lng);
-
-    if (clickMarker) {
-      clickMarker.setMap(null);
-    }
-
-    clickMarker = new naver.maps.Marker({
-      position: pos,
-      map: map,
-      title: "입력 좌표",
-      icon: {
-        content: `
-          <div style="
-            width:14px;
-            height:14px;
-            background:#2e7d32;
-            border-radius:50%;
-            border:2px solid white;
-            box-shadow:0 0 4px rgba(0,0,0,0.5);
-          "></div>
-        `,
-        anchor: new naver.maps.Point(7, 7)
-      }
-    });
-  }
-
-  function renderInfo(data){
-    const box = document.getElementById("infoBox");
-
-    const sourceBadge = data.coordinate
-      ? (
-        data.is_estimated
-          ? `<span class="badge badge-est">추정 좌표</span>`
-          : `<span class="badge badge-exact">실좌표</span>`
-      )
-      : "";
-
-    let coordHtml = `<div class="row">좌표 없음</div>`;
-
-    if (data.coordinate) {
-      coordHtml = `
-        <div class="row"><span class="label">위도</span>${data.coordinate.latitude}</div>
-        <div class="row"><span class="label">경도</span>${data.coordinate.longitude}</div>
-        <div class="row"><span class="label">좌표출처</span>${data.coordinate_source || "-"}</div>
-        ${
-          data.is_estimated
-            ? `
-              <div class="row"><span class="label">추정신뢰도</span>${data.coordinate.confidence_score ?? "-"}</div>
-              <div class="row"><span class="label">후보 개수</span>${data.coordinate.candidate_count ?? "-"}</div>
-            `
-            : ""
-        }
-      `;
-    }
-
-    box.innerHTML = `
-      <div class="row"><span class="label">전주번호</span>${data.pole_no} ${sourceBadge}</div>
-      <div class="row"><span class="label">관할1</span>${data.dept1}</div>
-      <div class="row"><span class="label">관할2</span>${data.dept2}</div>
-      <div class="row"><span class="label">권역</span>${data.region_code}</div>
-      <div class="row"><span class="label">번호유형</span>${data.pole_type || "-"}</div>
-      <div class="row"><span class="label">파싱상태</span>${data.parse_status || "-"}</div>
-      ${coordHtml}
-    `;
-  }
-
-  async function searchPole(){
-    const pole = document.getElementById("poleInput").value.trim().toUpperCase();
-
-    if (!pole) {
-      alert("전주번호를 입력하세요.");
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_BASE}/api/pole?no=${encodeURIComponent(pole)}`);
-      const json = await res.json();
-
-      if (!json.ok) {
-        alert(json.error || "조회 실패");
-        return;
-      }
-
-      const data = json.data;
-      currentPoleNo = data.pole_no;
-
-      renderInfo(data);
-
-      if (data.coordinate) {
-        setMarker(
-          Number(data.coordinate.latitude),
-          Number(data.coordinate.longitude),
-          data.pole_no,
-          data.is_estimated
-        );
-      } else {
-        alert("전주번호는 조회되었지만 저장된 좌표와 추정 좌표가 없습니다.");
-      }
-    } catch (err) {
-      alert("조회 중 오류가 발생했습니다: " + err.message);
-    }
-  }
-
-  function fillCurrentLocation(){
-    if (!navigator.geolocation) {
-      alert("이 브라우저는 위치 기능을 지원하지 않습니다.");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const acc = pos.coords.accuracy || "";
+      naver.maps.Event.addListener(map, "click", function (e) {
+        const lat = e.coord.lat();
+        const lng = e.coord.lng();
 
         document.getElementById("saveLat").value = lat.toFixed(7);
         document.getElementById("saveLng").value = lng.toFixed(7);
-        document.getElementById("saveAccuracy").value = acc;
 
         setClickMarker(lat, lng);
-      },
-      (err) => {
-        alert("현재 위치를 가져오지 못했습니다: " + err.message);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
+      });
+    }
+
+    function setMarker(lat, lng, title, isEstimated) {
+      const pos = new naver.maps.LatLng(lat, lng);
+
+      if (marker) {
+        marker.setMap(null);
       }
-    );
-  }
 
-  async function saveCoordinate(){
-    if (!currentPoleNo) {
-      alert("먼저 전주번호를 조회하세요.");
-      return;
-    }
+      const iconColor = isEstimated ? "#ef6c00" : "#1565c0";
 
-    const latitude = parseFloat(document.getElementById("saveLat").value);
-    const longitude = parseFloat(document.getElementById("saveLng").value);
-    const accuracyValue = document.getElementById("saveAccuracy").value.trim();
-    const accuracy_m = accuracyValue ? parseFloat(accuracyValue) : null;
-    const observer_name = document.getElementById("saveObserver").value.trim();
-    const memo = document.getElementById("saveMemo").value.trim();
-
-    if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
-      alert("위도/경도를 입력하세요.");
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_BASE}/api/observe`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          pole_no: currentPoleNo,
-          latitude,
-          longitude,
-          accuracy_m,
-          observer_name,
-          memo
-        })
+      marker = new naver.maps.Marker({
+        position: pos,
+        map: map,
+        title: title,
+        icon: {
+          content: `
+            <div style="
+              width:16px;
+              height:16px;
+              background:${iconColor};
+              border-radius:50%;
+              border:2px solid white;
+              box-shadow:0 0 4px rgba(0,0,0,0.6);
+            "></div>
+          `,
+          anchor: new naver.maps.Point(8, 8)
+        }
       });
 
-      const json = await res.json();
+      map.setCenter(pos);
+      map.setZoom(17);
+    }
 
-      if (!json.ok) {
-        alert(json.error || "저장 실패");
+    function setClickMarker(lat, lng) {
+      const pos = new naver.maps.LatLng(lat, lng);
+
+      if (clickMarker) {
+        clickMarker.setMap(null);
+      }
+
+      clickMarker = new naver.maps.Marker({
+        position: pos,
+        map: map,
+        title: "입력 좌표",
+        icon: {
+          content: `
+            <div style="
+              width:14px;
+              height:14px;
+              background:#2e7d32;
+              border-radius:50%;
+              border:2px solid white;
+              box-shadow:0 0 4px rgba(0,0,0,0.5);
+            "></div>
+          `,
+          anchor: new naver.maps.Point(7, 7)
+        }
+      });
+    }
+
+    function setLiveLocation(lat, lng, accuracy, heading) {
+      const pos = new naver.maps.LatLng(lat, lng);
+
+      if (liveMarker) {
+        liveMarker.setMap(null);
+      }
+
+      let rotation = "";
+      if (typeof heading === "number" && !Number.isNaN(heading)) {
+        rotation = `transform: rotate(${heading}deg);`;
+      }
+
+      liveMarker = new naver.maps.Marker({
+        position: pos,
+        map: map,
+        title: "현재 위치",
+        icon: {
+          content: `
+            <div style="
+              width:18px;
+              height:18px;
+              background:#2e7d32;
+              border-radius:50%;
+              border:2px solid white;
+              box-shadow:0 0 4px rgba(0,0,0,0.5);
+              ${rotation}
+            "></div>
+          `,
+          anchor: new naver.maps.Point(9, 9)
+        }
+      });
+
+      if (accuracyCircle) {
+        accuracyCircle.setMap(null);
+      }
+
+      accuracyCircle = new naver.maps.Circle({
+        map: map,
+        center: pos,
+        radius: Math.max(5, Number(accuracy || 0)),
+        fillColor: "#2e7d32",
+        fillOpacity: 0.10,
+        strokeColor: "#2e7d32",
+        strokeOpacity: 0.35,
+        strokeWeight: 1
+      });
+    }
+
+    function renderInfo(data) {
+      const box = document.getElementById("infoBox");
+
+      const sourceBadge = data.coordinate
+        ? (
+          data.is_estimated
+            ? `<span class="badge badge-est">추정 좌표</span>`
+            : `<span class="badge badge-exact">실좌표</span>`
+        )
+        : "";
+
+      let coordHtml = `<div class="row">좌표 없음</div>`;
+
+      if (data.coordinate) {
+        coordHtml = `
+          <div class="row"><span class="label">위도</span>${data.coordinate.latitude}</div>
+          <div class="row"><span class="label">경도</span>${data.coordinate.longitude}</div>
+          <div class="row"><span class="label">좌표출처</span>${data.coordinate_source || "-"}</div>
+          ${
+            data.is_estimated
+              ? `
+                <div class="row"><span class="label">추정신뢰도</span>${data.coordinate.confidence_score ?? "-"}</div>
+                <div class="row"><span class="label">후보 개수</span>${data.coordinate.candidate_count ?? "-"}</div>
+              `
+              : ""
+          }
+        `;
+      }
+
+      box.innerHTML = `
+        <div class="row"><span class="label">전주번호</span>${data.pole_no} ${sourceBadge}</div>
+        <div class="row"><span class="label">관할1</span>${data.dept1}</div>
+        <div class="row"><span class="label">관할2</span>${data.dept2}</div>
+        <div class="row"><span class="label">권역</span>${data.region_code}</div>
+        <div class="row"><span class="label">번호유형</span>${data.pole_type || "-"}</div>
+        <div class="row"><span class="label">파싱상태</span>${data.parse_status || "-"}</div>
+        ${coordHtml}
+      `;
+    }
+
+    function renderNoCoordinateGuide(data) {
+      const box = document.getElementById("infoBox");
+
+      box.innerHTML = `
+        <div class="row"><span class="label">전주번호</span>${data.pole_no}</div>
+        <div class="row"><span class="label">관할1</span>${data.dept1}</div>
+        <div class="row"><span class="label">관할2</span>${data.dept2}</div>
+        <div class="row"><span class="label">권역</span>${data.region_code}</div>
+        <div class="row"><span class="label">번호유형</span>${data.pole_type || "-"}</div>
+        <div class="row"><span class="label">파싱상태</span>${data.parse_status || "-"}</div>
+
+        <div class="guide-title">추정 기준 좌표 부족!</div>
+        <div class="guide-text">
+          인근 전주의 전주번호와 좌표를 등록하면 추정이 가능해집니다.
+        </div>
+      `;
+    }
+
+    function showLoading() {
+      document.getElementById("loadingBox").style.display = "block";
+      document.getElementById("infoBox").style.display = "none";
+
+      const btn = document.getElementById("searchBtn");
+      btn.disabled = true;
+      btn.textContent = "조회 중...";
+    }
+
+    function hideLoading() {
+      document.getElementById("loadingBox").style.display = "none";
+      document.getElementById("infoBox").style.display = "block";
+
+      const btn = document.getElementById("searchBtn");
+      btn.disabled = false;
+      btn.textContent = "조회";
+    }
+
+    async function searchPole() {
+      const pole = document.getElementById("poleInput").value.trim().toUpperCase();
+
+      if (!pole) {
+        alert("전주번호를 입력하세요.");
         return;
       }
 
-      alert("좌표가 저장되었습니다.");
-      await searchPole();
-    } catch (err) {
-      alert("저장 중 오류가 발생했습니다: " + err.message);
+      showLoading();
+
+      try {
+        const res = await fetch(`${API_BASE}/api/pole?no=${encodeURIComponent(pole)}`);
+        const json = await res.json();
+
+        hideLoading();
+
+        if (!json.ok) {
+          alert(json.error || "조회 실패");
+          return;
+        }
+
+        const data = json.data;
+        currentPoleNo = data.pole_no;
+
+        if (data.coordinate) {
+          renderInfo(data);
+
+          setMarker(
+            Number(data.coordinate.latitude),
+            Number(data.coordinate.longitude),
+            data.pole_no,
+            data.is_estimated
+          );
+        } else {
+          renderNoCoordinateGuide(data);
+        }
+      } catch (err) {
+        hideLoading();
+        alert("조회 중 오류가 발생했습니다: " + err.message);
+      }
     }
-  }
 
-  document.getElementById("poleInput").addEventListener("keydown", function(e){
-    if (e.key === "Enter") {
-      searchPole();
+    function fillCurrentLocation() {
+      if (!navigator.geolocation) {
+        alert("이 브라우저는 위치 기능을 지원하지 않습니다.");
+        return;
+      }
+
+      document.getElementById("gpsStatus").textContent = "현재 위치를 추적 중입니다...";
+
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const acc = pos.coords.accuracy || "";
+          const heading = pos.coords.heading;
+
+          document.getElementById("saveLat").value = lat.toFixed(7);
+          document.getElementById("saveLng").value = lng.toFixed(7);
+          document.getElementById("saveAccuracy").value = acc ? Math.round(acc) : "";
+
+          setClickMarker(lat, lng);
+          setLiveLocation(lat, lng, acc, heading);
+
+          const headingText =
+            (typeof heading === "number" && !Number.isNaN(heading))
+              ? ` / 방향 ${Math.round(heading)}°`
+              : "";
+
+          document.getElementById("gpsStatus").textContent =
+            `현재 위치 추적 중 · 정확도 약 ${Math.round(acc)}m${headingText}`;
+
+          map.setCenter(new naver.maps.LatLng(lat, lng));
+        },
+        (err) => {
+          document.getElementById("gpsStatus").textContent =
+            "현재 위치를 가져오지 못했습니다: " + err.message;
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
     }
-  });
 
-  initMap();
-</script>
+    async function saveCoordinate() {
+      if (!currentPoleNo) {
+        alert("먼저 전주번호를 조회하세요.");
+        return;
+      }
 
+      const latitude = parseFloat(document.getElementById("saveLat").value);
+      const longitude = parseFloat(document.getElementById("saveLng").value);
+      const accuracyValue = document.getElementById("saveAccuracy").value.trim();
+      const accuracy_m = accuracyValue ? parseFloat(accuracyValue) : null;
+      const observer_name = document.getElementById("saveObserver").value.trim();
+      const memo = document.getElementById("saveMemo").value.trim();
+
+      if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+        alert("위도/경도를 입력하세요.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/observe`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            pole_no: currentPoleNo,
+            latitude,
+            longitude,
+            accuracy_m,
+            observer_name,
+            memo
+          })
+        });
+
+        const json = await res.json();
+
+        if (!json.ok) {
+          alert(json.error || "저장 실패");
+          return;
+        }
+
+        alert("좌표가 저장되었습니다.");
+        await searchPole();
+      } catch (err) {
+        alert("저장 중 오류가 발생했습니다: " + err.message);
+      }
+    }
+
+    document.getElementById("poleInput").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        searchPole();
+      }
+    });
+
+    initMap();
+  </script>
 </body>
 </html>
