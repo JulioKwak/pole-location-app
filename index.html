@@ -52,9 +52,14 @@
         조회한 전주번호 기준으로 현재 입력된 좌표를 저장합니다.
       </div>
       <div class="helper">
-        지도 클릭 시 위도/경도가 자동 입력됩니다. 정확도는 30m 이하 권장, 100m 이상이면 재측정을 권장합니다.
+        지도 클릭 시 위도/경도가 자동 입력됩니다.
       </div>
+      <div class="helper">
+        GPS 정확도는 30m 이하 권장, 100m 이상이면 재측정 권장, 300m 이상이면 지도 클릭 또는 수기 보정을 권장합니다.
+      </div>
+
       <div class="gps-status" id="gpsStatus"></div>
+      <div class="accuracy-warning" id="accuracyWarning"></div>
     </div>
 
     <div class="map-wrapper">
@@ -70,8 +75,12 @@
           추정 좌표 (참고용)
         </div>
         <div class="legend-item">
+          <span class="legend-dot gps"></span>
+          현재 GPS 위치
+        </div>
+        <div class="legend-item">
           <span class="legend-dot input"></span>
-          입력 중 좌표 (GPS / 지도 클릭)
+          지도 클릭 입력 좌표
         </div>
       </div>
     </div>
@@ -81,12 +90,12 @@
     const API_BASE = "https://pole-location-api.junho-9ba.workers.dev";
 
     let map;
-    let marker;
-    let clickMarker;
-    let liveMarker;
-    let accuracyCircle;
-    let watchId = null;
+    let marker;              // 실좌표/추정좌표
+    let clickMarker;         // 지도 클릭 입력 마커(초록)
+    let gpsMarker;           // 현재 GPS 마커(빨강)
+    let gpsAccuracyCircle;   // GPS 정확도 원
     let currentPoleNo = null;
+    let currentHeading = null;
 
     function initMap() {
       const center = new naver.maps.LatLng(37.4563, 126.7052);
@@ -149,7 +158,7 @@
       clickMarker = new naver.maps.Marker({
         position: pos,
         map: map,
-        title: "입력 좌표",
+        title: "지도 클릭 입력 좌표",
         icon: {
           content: `
             <div style="
@@ -166,50 +175,72 @@
       });
     }
 
-    function setLiveLocation(lat, lng, accuracy, heading) {
+    function setGpsMarker(lat, lng, heading = null) {
       const pos = new naver.maps.LatLng(lat, lng);
 
-      if (liveMarker) {
-        liveMarker.setMap(null);
+      if (gpsMarker) {
+        gpsMarker.setMap(null);
       }
 
-      let rotation = "";
-      if (typeof heading === "number" && !Number.isNaN(heading)) {
-        rotation = `transform: rotate(${heading}deg);`;
-      }
+      const arrow = (typeof heading === "number" && !Number.isNaN(heading))
+        ? `
+          <div style="
+            position:absolute;
+            top:-18px;
+            left:50%;
+            transform:translateX(-50%) rotate(${heading}deg);
+            width:0;
+            height:0;
+            border-left:8px solid transparent;
+            border-right:8px solid transparent;
+            border-bottom:14px solid #e53935;
+            filter:drop-shadow(0 0 2px rgba(0,0,0,0.45));
+          "></div>
+        `
+        : "";
 
-      liveMarker = new naver.maps.Marker({
+      gpsMarker = new naver.maps.Marker({
         position: pos,
         map: map,
-        title: "현재 위치",
+        title: "현재 GPS 위치",
         icon: {
           content: `
-            <div style="
-              width:18px;
-              height:18px;
-              background:#2e7d32;
-              border-radius:50%;
-              border:2px solid white;
-              box-shadow:0 0 4px rgba(0,0,0,0.5);
-              ${rotation}
-            "></div>
+            <div style="position:relative; width:24px; height:24px;">
+              ${arrow}
+              <div style="
+                position:absolute;
+                left:50%;
+                top:50%;
+                transform:translate(-50%, -50%);
+                width:16px;
+                height:16px;
+                background:#e53935;
+                border-radius:50%;
+                border:2px solid white;
+                box-shadow:0 0 4px rgba(0,0,0,0.55);
+              "></div>
+            </div>
           `,
-          anchor: new naver.maps.Point(9, 9)
+          anchor: new naver.maps.Point(12, 12)
         }
       });
+    }
 
-      if (accuracyCircle) {
-        accuracyCircle.setMap(null);
+    function setGpsAccuracyCircle(lat, lng, accuracy) {
+      const pos = new naver.maps.LatLng(lat, lng);
+
+      if (gpsAccuracyCircle) {
+        gpsAccuracyCircle.setMap(null);
       }
 
-      accuracyCircle = new naver.maps.Circle({
+      gpsAccuracyCircle = new naver.maps.Circle({
         map: map,
         center: pos,
         radius: Math.max(5, Number(accuracy || 0)),
-        fillColor: "#2e7d32",
-        fillOpacity: 0.10,
-        strokeColor: "#2e7d32",
-        strokeOpacity: 0.35,
+        fillColor: "#e53935",
+        fillOpacity: 0.08,
+        strokeColor: "#e53935",
+        strokeOpacity: 0.28,
         strokeWeight: 1
       });
     }
@@ -290,6 +321,27 @@
       btn.textContent = "조회";
     }
 
+    function updateAccuracyWarning(acc) {
+      const warningEl = document.getElementById("accuracyWarning");
+
+      if (acc === null || acc === undefined || Number.isNaN(acc)) {
+        warningEl.textContent = "";
+        warningEl.className = "accuracy-warning";
+        return;
+      }
+
+      if (acc > 300) {
+        warningEl.textContent = "정확도 경고: 현재 오차가 매우 큽니다(300m 초과). 지도 클릭 또는 수기 보정을 권장합니다.";
+        warningEl.className = "accuracy-warning warn-high";
+      } else if (acc > 100) {
+        warningEl.textContent = "정확도 주의: 현재 오차가 큽니다(100m 초과). 가능하면 실외에서 재측정하세요.";
+        warningEl.className = "accuracy-warning warn-mid";
+      } else {
+        warningEl.textContent = "정확도 상태: 저장 가능한 수준입니다.";
+        warningEl.className = "accuracy-warning warn-ok";
+      }
+    }
+
     async function searchPole() {
       const pole = document.getElementById("poleInput").value.trim().toUpperCase();
 
@@ -338,40 +390,34 @@
         return;
       }
 
-      document.getElementById("gpsStatus").textContent = "현재 위치를 추적 중입니다...";
+      document.getElementById("gpsStatus").textContent = "현재 위치를 가져오는 중입니다...";
+      updateAccuracyWarning(null);
 
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-      }
-
-      watchId = navigator.geolocation.watchPosition(
-        (pos) => {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
-          const acc = pos.coords.accuracy || "";
-          const heading = pos.coords.heading;
+          const acc = pos.coords.accuracy || null;
 
           document.getElementById("saveLat").value = lat.toFixed(7);
           document.getElementById("saveLng").value = lng.toFixed(7);
           document.getElementById("saveAccuracy").value = acc ? Math.round(acc) : "";
 
-          setClickMarker(lat, lng);
-          setLiveLocation(lat, lng, acc, heading);
-
-          const headingText =
-            (typeof heading === "number" && !Number.isNaN(heading))
-              ? ` / 방향 ${Math.round(heading)}°`
-              : "";
-
-          document.getElementById("gpsStatus").textContent =
-            `현재 위치 추적 중 · 정확도 약 ${Math.round(acc)}m${headingText}`;
-
+          setGpsMarker(lat, lng, currentHeading);
+          setGpsAccuracyCircle(lat, lng, acc);
           map.setCenter(new naver.maps.LatLng(lat, lng));
+
+          const accText = acc ? `정확도 약 ${Math.round(acc)}m` : "정확도 확인 불가";
+          document.getElementById("gpsStatus").textContent = `현재 GPS 위치 반영 완료 · ${accText}`;
+
+          updateAccuracyWarning(acc);
+
+          await enableDeviceHeading(lat, lng);
         },
         (err) => {
           document.getElementById("gpsStatus").textContent =
             "현재 위치를 가져오지 못했습니다: " + err.message;
+          updateAccuracyWarning(null);
         },
         {
           enableHighAccuracy: true,
@@ -379,6 +425,55 @@
           maximumAge: 0
         }
       );
+    }
+
+    async function enableDeviceHeading(lat, lng) {
+      const statusEl = document.getElementById("gpsStatus");
+
+      if (
+        typeof DeviceOrientationEvent !== "undefined" &&
+        typeof DeviceOrientationEvent.requestPermission === "function"
+      ) {
+        try {
+          const permission = await DeviceOrientationEvent.requestPermission();
+          if (permission !== "granted") {
+            statusEl.textContent += " / 방향 권한 거부";
+            return;
+          }
+        } catch (err) {
+          statusEl.textContent += " / 방향 권한 요청 실패";
+          return;
+        }
+      }
+
+      window.removeEventListener("deviceorientation", handleOrientation);
+      window.addEventListener("deviceorientation", handleOrientation, true);
+
+      if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+        setGpsMarker(lat, lng, currentHeading);
+      }
+    }
+
+    function handleOrientation(event) {
+      const heading = event.webkitCompassHeading ?? event.alpha;
+
+      if (typeof heading !== "number" || Number.isNaN(heading)) {
+        return;
+      }
+
+      currentHeading = heading;
+
+      const lat = parseFloat(document.getElementById("saveLat").value);
+      const lng = parseFloat(document.getElementById("saveLng").value);
+
+      if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+        setGpsMarker(lat, lng, currentHeading);
+      }
+
+      const accValue = document.getElementById("saveAccuracy").value;
+      const accText = accValue ? `정확도 약 ${accValue}m` : "정확도 확인 불가";
+      document.getElementById("gpsStatus").textContent =
+        `현재 GPS 위치 반영 완료 · ${accText} / 방향 ${Math.round(currentHeading)}°`;
     }
 
     async function saveCoordinate() {
@@ -397,6 +492,14 @@
       if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
         alert("위도/경도를 입력하세요.");
         return;
+      }
+
+      if (!Number.isNaN(accuracy_m) && accuracy_m > 300) {
+        const proceed = confirm("현재 GPS 정확도 오차가 매우 큽니다(300m 초과). 그래도 저장하시겠습니까?");
+        if (!proceed) return;
+      } else if (!Number.isNaN(accuracy_m) && accuracy_m > 100) {
+        const proceed = confirm("현재 GPS 정확도 오차가 큽니다(100m 초과). 저장 전에 재측정을 권장합니다. 계속 저장하시겠습니까?");
+        if (!proceed) return;
       }
 
       try {
