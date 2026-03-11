@@ -639,10 +639,31 @@
 
         alert("좌표가 저장되었습니다.");
         await searchPole();
+        resetSaveForm();
       } catch (err) {
         alert("저장 중 오류가 발생했습니다: " + err.message);
       }
     }
+
+    function resetSaveForm() {
+  document.getElementById("saveLat").value = "";
+  document.getElementById("saveLng").value = "";
+  document.getElementById("saveAccuracy").value = "";
+  document.getElementById("saveObserver").value = "";
+  document.getElementById("saveMemo").value = "";
+
+  document.getElementById("gpsStatus").textContent = "";
+  document.getElementById("accuracyWarning").textContent = "";
+  document.getElementById("accuracyWarning").className = "accuracy-warning";
+
+  currentGpsLat = null;
+  currentGpsLng = null;
+  currentGpsAccuracy = null;
+  currentHeading = null;
+
+  clearClickMarker();
+  clearGpsVisuals();
+}
 
     document.getElementById("poleInput").addEventListener("keydown", function (e) {
       if (e.key === "Enter") {
