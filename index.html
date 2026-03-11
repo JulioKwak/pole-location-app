@@ -116,6 +116,90 @@
       });
     }
 
+    function createPinIcon(color, options = {}) {
+      const {
+        heading = null,
+        size = 30,
+        dotSize = 18,
+        borderSize = 4,
+        haloSize = 8,
+        withArrow = false,
+        anchorX = 15,
+        anchorY = 15
+      } = options;
+
+      const arrow = (withArrow && typeof heading === "number" && !Number.isNaN(heading))
+        ? `
+          <div style="
+            position:absolute;
+            left:50%;
+            top:-6px;
+            width:0;
+            height:0;
+            transform:translateX(-50%) rotate(${heading}deg);
+            transform-origin:50% 22px;
+          ">
+            <div style="
+              position:absolute;
+              left:-10px;
+              top:-18px;
+              width:0;
+              height:0;
+              border-left:10px solid transparent;
+              border-right:10px solid transparent;
+              border-bottom:18px solid white;
+            "></div>
+            <div style="
+              position:absolute;
+              left:-8px;
+              top:-15px;
+              width:0;
+              height:0;
+              border-left:8px solid transparent;
+              border-right:8px solid transparent;
+              border-bottom:15px solid ${color};
+            "></div>
+          </div>
+        `
+        : "";
+
+      return {
+        content: `
+          <div style="
+            position:relative;
+            width:${size}px;
+            height:${size}px;
+          ">
+            ${arrow}
+            <div style="
+              position:absolute;
+              left:50%;
+              top:50%;
+              transform:translate(-50%, -50%);
+              width:${dotSize}px;
+              height:${dotSize}px;
+              background:${color};
+              border-radius:50%;
+              border:${borderSize}px solid white;
+              box-shadow:
+                0 0 0 ${haloSize}px ${hexToRgba(color, 0.10)},
+                0 1px 4px rgba(0,0,0,0.35);
+            "></div>
+          </div>
+        `,
+        anchor: new naver.maps.Point(anchorX, anchorY)
+      };
+    }
+
+    function hexToRgba(hex, alpha) {
+      const value = hex.replace("#", "");
+      const bigint = parseInt(value, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+
     function setMarker(lat, lng, title, isEstimated) {
       const pos = new naver.maps.LatLng(lat, lng);
 
@@ -123,25 +207,21 @@
         marker.setMap(null);
       }
 
-      const iconColor = isEstimated ? "#ef6c00" : "#1565c0";
+      const color = isEstimated ? "#ef6c00" : "#1565c0";
 
       marker = new naver.maps.Marker({
         position: pos,
         map: map,
         title: title,
-        icon: {
-          content: `
-            <div style="
-              width:16px;
-              height:16px;
-              background:${iconColor};
-              border-radius:50%;
-              border:2px solid white;
-              box-shadow:0 0 4px rgba(0,0,0,0.6);
-            "></div>
-          `,
-          anchor: new naver.maps.Point(8, 8)
-        }
+        icon: createPinIcon(color, {
+          withArrow: false,
+          size: 30,
+          dotSize: 18,
+          borderSize: 4,
+          haloSize: 8,
+          anchorX: 15,
+          anchorY: 15
+        })
       });
 
       map.setCenter(pos);
@@ -159,19 +239,15 @@
         position: pos,
         map: map,
         title: "지도 클릭 입력 좌표",
-        icon: {
-          content: `
-            <div style="
-              width:14px;
-              height:14px;
-              background:#2e7d32;
-              border-radius:50%;
-              border:2px solid white;
-              box-shadow:0 0 4px rgba(0,0,0,0.5);
-            "></div>
-          `,
-          anchor: new naver.maps.Point(7, 7)
-        }
+        icon: createPinIcon("#2e7d32", {
+          withArrow: false,
+          size: 28,
+          dotSize: 16,
+          borderSize: 4,
+          haloSize: 7,
+          anchorX: 14,
+          anchorY: 14
+        })
       });
     }
 
@@ -182,47 +258,20 @@
         gpsMarker.setMap(null);
       }
 
-      const arrow = (typeof heading === "number" && !Number.isNaN(heading))
-        ? `
-          <div style="
-            position:absolute;
-            top:-18px;
-            left:50%;
-            transform:translateX(-50%) rotate(${heading}deg);
-            width:0;
-            height:0;
-            border-left:8px solid transparent;
-            border-right:8px solid transparent;
-            border-bottom:14px solid #e53935;
-            filter:drop-shadow(0 0 2px rgba(0,0,0,0.45));
-          "></div>
-        `
-        : "";
-
       gpsMarker = new naver.maps.Marker({
         position: pos,
         map: map,
         title: "현재 GPS 위치",
-        icon: {
-          content: `
-            <div style="position:relative; width:24px; height:24px;">
-              ${arrow}
-              <div style="
-                position:absolute;
-                left:50%;
-                top:50%;
-                transform:translate(-50%, -50%);
-                width:16px;
-                height:16px;
-                background:#e53935;
-                border-radius:50%;
-                border:2px solid white;
-                box-shadow:0 0 4px rgba(0,0,0,0.55);
-              "></div>
-            </div>
-          `,
-          anchor: new naver.maps.Point(12, 12)
-        }
+        icon: createPinIcon("#e53935", {
+          heading,
+          withArrow: true,
+          size: 30,
+          dotSize: 18,
+          borderSize: 4,
+          haloSize: 8,
+          anchorX: 15,
+          anchorY: 15
+        })
       });
     }
 
