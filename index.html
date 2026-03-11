@@ -94,8 +94,14 @@
     let clickMarker;       // 지도 클릭 입력 마커(초록)
     let gpsMarker;         // 현재 GPS 마커(빨강)
     let gpsAccuracyCircle; // GPS 정확도 원
+
     let currentPoleNo = null;
     let currentHeading = null;
+
+    // GPS 좌표는 입력창과 분리해서 별도 보관
+    let currentGpsLat = null;
+    let currentGpsLng = null;
+    let currentGpsAccuracy = null;
 
     function initMap() {
       const center = new naver.maps.LatLng(37.4563, 126.7052);
@@ -113,7 +119,19 @@
         document.getElementById("saveLng").value = lng.toFixed(7);
 
         setClickMarker(lat, lng);
+
+        document.getElementById("gpsStatus").textContent =
+          "지도 클릭 좌표를 입력칸에 반영했습니다. GPS 마커는 현재 위치를 유지합니다.";
       });
+    }
+
+    function hexToRgba(hex, alpha) {
+      const value = hex.replace("#", "");
+      const bigint = parseInt(value, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return `rgba(${r},${g},${b},${alpha})`;
     }
 
     function createPinIcon(color, options = {}) {
@@ -133,31 +151,32 @@
           <div style="
             position:absolute;
             left:50%;
-            top:-6px;
+            top:2px;
             width:0;
             height:0;
             transform:translateX(-50%) rotate(${heading}deg);
-            transform-origin:50% 22px;
+            transform-origin:50% 13px;
+            pointer-events:none;
           ">
             <div style="
               position:absolute;
-              left:-10px;
-              top:-18px;
-              width:0;
-              height:0;
-              border-left:10px solid transparent;
-              border-right:10px solid transparent;
-              border-bottom:18px solid white;
-            "></div>
-            <div style="
-              position:absolute;
               left:-8px;
-              top:-15px;
+              top:-12px;
               width:0;
               height:0;
               border-left:8px solid transparent;
               border-right:8px solid transparent;
-              border-bottom:15px solid ${color};
+              border-bottom:14px solid white;
+            "></div>
+            <div style="
+              position:absolute;
+              left:-6px;
+              top:-9px;
+              width:0;
+              height:0;
+              border-left:6px solid transparent;
+              border-right:6px solid transparent;
+              border-bottom:11px solid ${color};
             "></div>
           </div>
         `
@@ -189,15 +208,6 @@
         `,
         anchor: new naver.maps.Point(anchorX, anchorY)
       };
-    }
-
-    function hexToRgba(hex, alpha) {
-      const value = hex.replace("#", "");
-      const bigint = parseInt(value, 16);
-      const r = (bigint >> 16) & 255;
-      const g = (bigint >> 8) & 255;
-      const b = bigint & 255;
-      return `rgba(${r},${g},${b},${alpha})`;
     }
 
     function setMarker(lat, lng, title, isEstimated) {
@@ -442,7 +452,7 @@
       document.getElementById("gpsStatus").textContent = "현재 위치를 가져오는 중입니다...";
       updateAccuracyWarning(null);
 
-      // iPhone Safari는 사용자 클릭 직후 권한 요청해야 성공 확률이 높음
+      // iPhone Safari는 사용자 클릭 직후 방향 권한 요청해야 성공 확률이 높음
       await enableDeviceHeading();
 
       navigator.geolocation.getCurrentPosition(
@@ -450,6 +460,11 @@
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           const acc = pos.coords.accuracy || null;
+
+          // GPS 전용 상태값 저장
+          currentGpsLat = lat;
+          currentGpsLng = lng;
+          currentGpsAccuracy = acc;
 
           document.getElementById("saveLat").value = lat.toFixed(7);
           document.getElementById("saveLng").value = lng.toFixed(7);
@@ -521,15 +536,12 @@
 
       currentHeading = heading;
 
-      const lat = parseFloat(document.getElementById("saveLat").value);
-      const lng = parseFloat(document.getElementById("saveLng").value);
-
-      if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
-        setGpsMarker(lat, lng, currentHeading);
+      // 입력창 좌표가 아니라 실제 GPS 좌표 상태값으로 갱신
+      if (currentGpsLat !== null && currentGpsLng !== null) {
+        setGpsMarker(currentGpsLat, currentGpsLng, currentHeading);
       }
 
-      const accValue = document.getElementById("saveAccuracy").value;
-      const accText = accValue ? `정확도 약 ${accValue}m` : "정확도 확인 불가";
+      const accText = currentGpsAccuracy ? `정확도 약 ${Math.round(currentGpsAccuracy)}m` : "정확도 확인 불가";
 
       document.getElementById("gpsStatus").textContent =
         `현재 GPS 위치 반영 완료 · ${accText} / 방향 ${Math.round(currentHeading)}°`;
