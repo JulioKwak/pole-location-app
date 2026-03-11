@@ -482,6 +482,53 @@
         return;
       }
 
+      `11111111`
+async function enableDeviceHeading() {
+  const statusEl = document.getElementById("gpsStatus");
+
+  if (typeof DeviceOrientationEvent === "undefined") {
+    statusEl.textContent += " / 방향센서 API 미지원";
+    return;
+  }
+
+  if (typeof DeviceOrientationEvent.requestPermission === "function") {
+    try {
+      const permission = await DeviceOrientationEvent.requestPermission();
+      statusEl.textContent += ` / 방향 권한: ${permission}`;
+      if (permission !== "granted") return;
+    } catch (err) {
+      statusEl.textContent += ` / 방향 권한 요청 실패`;
+      return;
+    }
+  }
+
+  window.removeEventListener("deviceorientation", handleOrientation);
+  window.addEventListener("deviceorientation", handleOrientation, true);
+}
+
+function handleOrientation(event) {
+
+  const heading = event.webkitCompassHeading ?? event.alpha;
+
+  if (typeof heading !== "number" || Number.isNaN(heading)) {
+    document.getElementById("gpsStatus").textContent =
+      "현재 GPS 위치 반영 완료 / 방향값 없음";
+    return;
+  }
+
+  currentHeading = heading;
+
+  const lat = parseFloat(document.getElementById("saveLat").value);
+  const lng = parseFloat(document.getElementById("saveLng").value);
+
+  if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+    setGpsMarker(lat, lng, currentHeading);
+  }
+
+  document.getElementById("gpsStatus").textContent =
+    `현재 GPS 위치 반영 완료 / 방향 ${Math.round(currentHeading)}°`;
+}
+    `11111111111111111` 
       const latitude = parseFloat(document.getElementById("saveLat").value);
       const longitude = parseFloat(document.getElementById("saveLng").value);
       const accuracyValue = document.getElementById("saveAccuracy").value.trim();
