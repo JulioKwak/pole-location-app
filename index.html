@@ -125,6 +125,7 @@
     let gpsAccuracyCircle;
 
     let currentPoleNo = null;
+    let currentDept1 = null;
     let currentHeading = null;
 
     let currentGpsLat = null;
@@ -301,6 +302,13 @@
       }
     }
 
+    function clearResultMarker() {
+      if (marker) {
+        marker.setMap(null);
+        marker = null;
+      }
+    }
+
     function setMarker(lat, lng, title, isEstimated) {
       const pos = new naver.maps.LatLng(lat, lng);
 
@@ -458,6 +466,11 @@
     function renderNoCoordinateGuide(data) {
       const box = document.getElementById("infoBox");
       const selectedOrigin = data?.estimation_detail?.origin || null;
+      const reason = data?.estimation_detail?.reason || "";
+
+      const reasonText = reason === "unsupported_axis_letter"
+        ? "현재 축 문자 규칙에 없는 전주번호입니다."
+        : "인근 전주의 전주번호와 좌표를 등록하면 추정이 가능해집니다.";
 
       box.innerHTML = `
         <div class="row"><span class="label">전주번호</span>${data.pole_no}</div>
@@ -468,10 +481,8 @@
         <div class="row"><span class="label">파싱상태</span>${data.parse_status || "-"}</div>
         <div class="row"><span class="label">선택원점</span>${buildOriginText(selectedOrigin)}</div>
 
-        <div class="guide-title">추정 기준 좌표 부족!</div>
-        <div class="guide-text">
-          인근 전주의 전주번호와 좌표를 등록하면 추정이 가능해집니다.
-        </div>
+        <div class="guide-title">추정 기준 좌표 부족</div>
+        <div class="guide-text">${reasonText}</div>
       `;
     }
 
@@ -613,12 +624,16 @@
         hideLoading();
 
         if (!json.ok) {
+          clearResultMarker();
+          currentPoleNo = null;
+          currentDept1 = null;
           alert(json.error || "조회 실패");
           return;
         }
 
         const data = json.data;
         currentPoleNo = data.pole_no;
+        currentDept1 = data.dept1 || dept1;
         lastSelectedOrigin = data?.estimation_detail?.origin || null;
 
         if (data?.estimation_detail?.origin) {
@@ -639,10 +654,12 @@
             data.is_estimated
           );
         } else {
+          clearResultMarker();
           renderNoCoordinateGuide(data);
         }
       } catch (err) {
         hideLoading();
+        clearResultMarker();
         alert("조회 중 오류가 발생했습니다: " + err.message);
       }
     }
@@ -772,12 +789,18 @@
         return;
       }
 
+      const dept1 = (currentDept1 || document.getElementById("dept1Select").value || "").trim();
       const latitude = parseFloat(document.getElementById("saveLat").value);
       const longitude = parseFloat(document.getElementById("saveLng").value);
       const accuracyValue = document.getElementById("saveAccuracy").value.trim();
       const accuracy_m = accuracyValue ? parseFloat(accuracyValue) : null;
       const observer_name = document.getElementById("saveObserver").value.trim();
       const memo = document.getElementById("saveMemo").value.trim();
+
+      if (!dept1) {
+        alert("관할부서 1차 정보가 없습니다. 다시 조회 후 저장하세요.");
+        return;
+      }
 
       if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
         alert("위도/경도를 입력하세요.");
@@ -800,6 +823,7 @@
           },
           body: JSON.stringify({
             pole_no: currentPoleNo,
+            dept1,
             latitude,
             longitude,
             accuracy_m,
