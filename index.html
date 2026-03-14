@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>전주 위치 조회</title>
 
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./style.css" />
 
   <!-- 네이버 지도 -->
   <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=ql4o2776tv"></script>
@@ -14,9 +14,38 @@
   <div class="container">
     <h2>전주 위치 조회</h2>
 
-    <div class="search">
-      <input id="poleInput" placeholder="전주번호 입력 (예: 8927Y621)">
-      <button id="searchBtn" onclick="searchPole()">조회</button>
+    <div class="save-box" id="originBox">
+      <h3>조회 조건</h3>
+
+      <div class="save-grid">
+        <div class="full">
+          <label for="originSelect">원점 선택</label>
+          <select id="originSelect">
+            <option value="auto" selected>자동</option>
+            <option value="1">원점1 (경기 오산)</option>
+            <option value="2">원점2 (강원 태백)</option>
+            <option value="3">원점3 (전남 담양)</option>
+            <option value="4">원점4 (경남 양산)</option>
+          </select>
+        </div>
+
+        <div class="full">
+          <label for="dept1Select">관할부서 1차</label>
+          <select id="dept1Select">
+            <option value="">불러오는 중...</option>
+          </select>
+        </div>
+
+        <input id="poleInput" class="full" placeholder="전주번호 입력 (예: 8927Y621)" />
+      </div>
+
+      <div class="helper" id="originStatus">
+        조회 시 원점 기본값은 자동이며, 현재 위치 기준으로 가장 가까운 원점을 선택합니다.
+      </div>
+
+      <div class="button-row" style="margin-top:10px;">
+        <button id="searchBtn" onclick="searchPole()">조회</button>
+      </div>
     </div>
 
     <div class="info" id="loadingBox" style="display:none;">
@@ -27,52 +56,18 @@
     </div>
 
     <div class="info" id="infoBox">
-      전주번호를 입력한 뒤 조회하세요.
-    </div>
-
-    <!-- 조회용 원점 상태 / 수동선택 -->
-    <div class="save-box" id="originBox">
-      <h3>원점 선택</h3>
-
-      <div class="helper" id="originStatus">
-        조회 시 현재 위치를 기준으로 가장 가까운 원점을 자동 선택합니다.
-      </div>
-
-      <div id="originManualWrap" style="display:none; margin-top:10px;">
-        <div class="helper" style="margin-bottom:8px;">
-          원점을 찾지 못했습니다. 원점을 선택해주세요.
-        </div>
-
-        <div class="button-row" style="flex-wrap:wrap;">
-          <label style="display:flex; align-items:center; gap:6px;">
-            <input type="radio" name="manualOrigin" value="1">
-            원점1 (오산)
-          </label>
-          <label style="display:flex; align-items:center; gap:6px;">
-            <input type="radio" name="manualOrigin" value="2">
-            원점2 (태백)
-          </label>
-          <label style="display:flex; align-items:center; gap:6px;">
-            <input type="radio" name="manualOrigin" value="3">
-            원점3 (담양)
-          </label>
-          <label style="display:flex; align-items:center; gap:6px;">
-            <input type="radio" name="manualOrigin" value="4">
-            원점4 (양산)
-          </label>
-        </div>
-      </div>
+      관할부서 1차와 전주번호를 입력한 뒤 조회하세요.
     </div>
 
     <div class="save-box">
       <h3>좌표 등록</h3>
 
       <div class="save-grid">
-        <input id="saveLat" placeholder="위도">
-        <input id="saveLng" placeholder="경도">
+        <input id="saveLat" placeholder="위도" />
+        <input id="saveLng" placeholder="경도" />
 
-        <input id="saveAccuracy" placeholder="정확도(m), 예: 10">
-        <input id="saveObserver" placeholder="등록자명(선택)">
+        <input id="saveAccuracy" placeholder="정확도(m), 예: 10" />
+        <input id="saveObserver" placeholder="등록자명(선택)" />
 
         <textarea id="saveMemo" class="full" placeholder="메모(선택)" rows="3"></textarea>
       </div>
@@ -124,20 +119,18 @@
     const API_BASE = "https://pole-location-api.junho-9ba.workers.dev";
 
     let map;
-    let marker;            // 실좌표/추정좌표 마커
-    let clickMarker;       // 지도 클릭 입력 마커(초록)
-    let gpsMarker;         // 현재 GPS 마커(빨강)
-    let gpsAccuracyCircle; // GPS 정확도 원
+    let marker;
+    let clickMarker;
+    let gpsMarker;
+    let gpsAccuracyCircle;
 
     let currentPoleNo = null;
     let currentHeading = null;
 
-    // 좌표 등록용 GPS 상태
     let currentGpsLat = null;
     let currentGpsLng = null;
     let currentGpsAccuracy = null;
 
-    // 조회용 최근 상태
     let lastSearchGps = null;
     let lastSelectedOrigin = null;
 
@@ -145,10 +138,11 @@
     let headingEnabled = false;
 
     const ORIGIN_LABELS = {
-      "1": "원점1 (오산)",
-      "2": "원점2 (태백)",
-      "3": "원점3 (담양)",
-      "4": "원점4 (양산)"
+      auto: "자동",
+      "1": "원점1 (경기 오산)",
+      "2": "원점2 (강원 태백)",
+      "3": "원점3 (전남 담양)",
+      "4": "원점4 (경남 양산)"
     };
 
     function initMap() {
@@ -171,6 +165,36 @@
         document.getElementById("gpsStatus").textContent =
           "지도 클릭 좌표를 입력칸에 반영했습니다.";
       });
+    }
+
+    async function loadDept1s() {
+      const dept1Select = document.getElementById("dept1Select");
+
+      try {
+        dept1Select.innerHTML = `<option value="">불러오는 중...</option>`;
+
+        const res = await fetch(`${API_BASE}/api/dept1s`);
+        const json = await res.json();
+
+        if (!json.ok) {
+          throw new Error(json.error || "관할부서 목록 조회 실패");
+        }
+
+        const list = Array.isArray(json.data) ? json.data : [];
+
+        dept1Select.innerHTML = `<option value="">관할부서 1차 선택</option>`;
+
+        list.forEach((dept1) => {
+          const option = document.createElement("option");
+          option.value = dept1;
+          option.textContent = dept1;
+          dept1Select.appendChild(option);
+        });
+      } catch (err) {
+        dept1Select.innerHTML = `<option value="">불러오기 실패</option>`;
+        document.getElementById("infoBox").textContent =
+          "관할부서 1차 목록을 불러오지 못했습니다: " + err.message;
+      }
     }
 
     function hexToRgba(hex, alpha) {
@@ -371,32 +395,12 @@
       });
     }
 
-    function getSelectedManualOrigin() {
-      const checked = document.querySelector('input[name="manualOrigin"]:checked');
-      return checked ? checked.value : null;
-    }
-
-    function setSelectedManualOrigin(originCode) {
-      const radios = document.querySelectorAll('input[name="manualOrigin"]');
-      radios.forEach((radio) => {
-        radio.checked = String(radio.value) === String(originCode);
-      });
-    }
-
-    function showManualOriginSelector(message = "원점을 찾지 못했습니다. 원점을 선택해주세요.") {
-      const wrap = document.getElementById("originManualWrap");
-      wrap.style.display = "block";
-      document.getElementById("originStatus").textContent = message;
-    }
-
-    function hideManualOriginSelector(message = "조회 시 현재 위치를 기준으로 가장 가까운 원점을 자동 선택합니다.") {
-      const wrap = document.getElementById("originManualWrap");
-      wrap.style.display = "none";
-      document.getElementById("originStatus").textContent = message;
-    }
-
     function buildOriginText(origin) {
       if (!origin) return "-";
+
+      if (typeof origin === "string") {
+        return ORIGIN_LABELS[String(origin)] || "-";
+      }
 
       const codeText = origin.code ? `원점${origin.code}` : "원점";
       const nameText = origin.name ? ` (${origin.name})` : "";
@@ -442,9 +446,9 @@
 
       box.innerHTML = `
         <div class="row"><span class="label">전주번호</span>${data.pole_no} ${sourceBadge}</div>
-        <div class="row"><span class="label">관할1</span>${data.dept1}</div>
-        <div class="row"><span class="label">관할2</span>${data.dept2}</div>
-        <div class="row"><span class="label">권역</span>${data.region_code}</div>
+        <div class="row"><span class="label">관할1</span>${data.dept1 || "-"}</div>
+        <div class="row"><span class="label">관할2</span>${data.dept2 || "-"}</div>
+        <div class="row"><span class="label">권역</span>${data.region_code || "-"}</div>
         <div class="row"><span class="label">번호유형</span>${data.pole_type || "-"}</div>
         <div class="row"><span class="label">파싱상태</span>${data.parse_status || "-"}</div>
         ${coordHtml}
@@ -457,9 +461,9 @@
 
       box.innerHTML = `
         <div class="row"><span class="label">전주번호</span>${data.pole_no}</div>
-        <div class="row"><span class="label">관할1</span>${data.dept1}</div>
-        <div class="row"><span class="label">관할2</span>${data.dept2}</div>
-        <div class="row"><span class="label">권역</span>${data.region_code}</div>
+        <div class="row"><span class="label">관할1</span>${data.dept1 || "-"}</div>
+        <div class="row"><span class="label">관할2</span>${data.dept2 || "-"}</div>
+        <div class="row"><span class="label">권역</span>${data.region_code || "-"}</div>
         <div class="row"><span class="label">번호유형</span>${data.pole_type || "-"}</div>
         <div class="row"><span class="label">파싱상태</span>${data.parse_status || "-"}</div>
         <div class="row"><span class="label">선택원점</span>${buildOriginText(selectedOrigin)}</div>
@@ -558,63 +562,76 @@
     }
 
     async function searchPole() {
+      const dept1 = document.getElementById("dept1Select").value.trim();
       const pole = document.getElementById("poleInput").value.trim().toUpperCase();
-    
+      const origin = document.getElementById("originSelect").value;
+
+      if (!dept1) {
+        alert("관할부서 1차를 선택하세요.");
+        return;
+      }
+
       if (!pole) {
         alert("전주번호를 입력하세요.");
         return;
       }
-    
+
       showLoading();
-    
+
       try {
-        const liveGps = await getCurrentPositionForSearch();
-        lastSearchGps = liveGps;
-    
-        let apiUrl = `${API_BASE}/api/pole?no=${encodeURIComponent(pole)}`;
-    
-        if (liveGps && liveGps.lat != null && liveGps.lng != null) {
-          apiUrl += `&lat=${encodeURIComponent(liveGps.lat)}&lng=${encodeURIComponent(liveGps.lng)}`;
-    
-          const accText = liveGps.accuracy ? `정확도 약 ${Math.round(liveGps.accuracy)}m` : "정확도 확인 불가";
-          hideManualOriginSelector(`조회 기준 현재 위치 사용 · ${accText}`);
-        } else {
-          const manualOrigin = getSelectedManualOrigin();
-    
-          if (!manualOrigin) {
+        let apiUrl = `${API_BASE}/api/pole?dept1=${encodeURIComponent(dept1)}&no=${encodeURIComponent(pole)}`;
+
+        if (origin === "auto") {
+          const liveGps = await getCurrentPositionForSearch();
+          lastSearchGps = liveGps;
+
+          if (liveGps && liveGps.lat != null && liveGps.lng != null) {
+            apiUrl += `&lat=${encodeURIComponent(liveGps.lat)}&lng=${encodeURIComponent(liveGps.lng)}`;
+
+            const accText = liveGps.accuracy
+              ? `정확도 약 ${Math.round(liveGps.accuracy)}m`
+              : "정확도 확인 불가";
+
+            document.getElementById("originStatus").textContent =
+              `조회 기준 현재 위치 사용 · ${accText}`;
+          } else {
             hideLoading();
-            showManualOriginSelector("원점을 찾지 못했습니다. 원점을 선택해주세요.");
+            document.getElementById("originStatus").textContent =
+              "원점을 찾지 못했습니다. 원점을 선택해주세요.";
+            alert("현재 위치를 가져오지 못했습니다. 원점을 선택한 뒤 다시 조회하세요.");
             return;
           }
-    
-          apiUrl += `&origin=${encodeURIComponent(manualOrigin)}`;
-          showManualOriginSelector(`${ORIGIN_LABELS[manualOrigin]} 기준으로 조회합니다.`);
+        } else {
+          apiUrl += `&origin=${encodeURIComponent(origin)}`;
+          document.getElementById("originStatus").textContent =
+            `${ORIGIN_LABELS[origin]} 기준으로 조회합니다.`;
         }
-    
+
         const res = await fetch(apiUrl);
         const json = await res.json();
-    
+
         hideLoading();
-    
+
         if (!json.ok) {
           alert(json.error || "조회 실패");
           return;
         }
-    
+
         const data = json.data;
         currentPoleNo = data.pole_no;
         lastSelectedOrigin = data?.estimation_detail?.origin || null;
-    
-        if (!liveGps && lastSelectedOrigin && lastSelectedOrigin.code) {
-          setSelectedManualOrigin(lastSelectedOrigin.code);
-          showManualOriginSelector(`${buildOriginText(lastSelectedOrigin)} 기준으로 조회했습니다. 필요 시 다른 원점을 선택해 다시 조회하세요.`);
-        } else if (liveGps && lastSelectedOrigin) {
-          hideManualOriginSelector(`자동 선택 원점: ${buildOriginText(lastSelectedOrigin)}`);
+
+        if (data?.estimation_detail?.origin) {
+          document.getElementById("originStatus").textContent =
+            `조회 적용 원점: ${buildOriginText(data.estimation_detail.origin)}`;
+        } else if (origin !== "auto") {
+          document.getElementById("originStatus").textContent =
+            `${ORIGIN_LABELS[origin]} 기준으로 조회했습니다.`;
         }
-    
+
         if (data.coordinate) {
           renderInfo(data);
-    
+
           setMarker(
             Number(data.coordinate.latitude),
             Number(data.coordinate.longitude),
@@ -812,7 +829,23 @@
       }
     });
 
-    initMap();
+    document.getElementById("originSelect").addEventListener("change", function () {
+      const origin = this.value;
+      const originStatus = document.getElementById("originStatus");
+
+      if (origin === "auto") {
+        originStatus.textContent =
+          "조회 시 현재 위치를 기준으로 가장 가까운 원점을 자동 선택합니다.";
+      } else {
+        originStatus.textContent =
+          `${ORIGIN_LABELS[origin]}을(를) 선택했습니다. 조회 시 해당 원점을 사용합니다.`;
+      }
+    });
+
+    document.addEventListener("DOMContentLoaded", async function () {
+      initMap();
+      await loadDept1s();
+    });
   </script>
 </body>
 </html>
