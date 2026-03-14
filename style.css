@@ -21,8 +21,18 @@ h2, h3{
   margin-bottom: 15px;
 }
 
+label{
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+}
+
 input,
+select,
 textarea{
+  width: 100%;
   padding: 12px;
   font-size: 16px;
   box-sizing: border-box;
@@ -32,10 +42,26 @@ textarea{
 }
 
 input:focus,
+select:focus,
 textarea:focus{
   outline: none;
   border-color: #1565c0;
   box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.12);
+}
+
+select{
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #666 50%),
+    linear-gradient(135deg, #666 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 12px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 42px;
 }
 
 button{
@@ -90,7 +116,7 @@ button:disabled{
 .save-grid{
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 10px;
 }
 
@@ -105,6 +131,10 @@ button:disabled{
   flex-wrap: wrap;
 }
 
+.button-row button{
+  min-width: 110px;
+}
+
 .notice{
   font-size: 14px;
   color: #555;
@@ -115,18 +145,21 @@ button:disabled{
   margin-top: 8px;
   font-size: 13px;
   color: #666;
+  line-height: 1.5;
 }
 
 .gps-status{
   margin-top: 8px;
   font-size: 13px;
   color: #444;
+  line-height: 1.5;
 }
 
 .accuracy-warning{
   margin-top: 8px;
   font-size: 13px;
   font-weight: bold;
+  line-height: 1.5;
 }
 
 .warn-ok{
@@ -163,6 +196,7 @@ button:disabled{
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
   font-size: 13px;
   z-index: 10;
+  max-width: 320px;
 }
 
 .legend-item{
@@ -228,6 +262,7 @@ button:disabled{
 
 .guide-text{
   color: #555;
+  line-height: 1.5;
 }
 
 .loading-inline{
@@ -279,10 +314,19 @@ button:disabled{
 
   .save-grid{
     grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .label{
     width: 110px;
+  }
+
+  .button-row{
+    flex-direction: column;
+  }
+
+  .button-row button{
+    width: 100%;
   }
 
   #map{
@@ -294,5 +338,6 @@ button:disabled{
     right: 10px;
     bottom: 10px;
     font-size: 12px;
+    max-width: none;
   }
 }
