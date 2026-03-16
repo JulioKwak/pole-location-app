@@ -27,15 +27,6 @@
           </select>
         </div>
 
-        <div class="full">
-          <label for="mapTypeSelect">지도 유형</label>
-          <select id="mapTypeSelect" onchange="changeMapType(this.value)">
-            <option value="normal" selected>일반 지도</option>
-            <option value="satellite">위성 지도</option>
-            <option value="hybrid">위성 + 도로</option>
-          </select>
-        </div>
-
         <input id="poleInput" class="full" placeholder="전주번호 입력 (예: 8927Y621 또는 88891291)" />
       </div>
 
@@ -46,7 +37,6 @@
       <div class="button-row" style="margin-top:10px;">
         <button id="searchBtn" onclick="searchPole()">조회</button>
         <button id="navBtn" onclick="openNavigation()" disabled>길안내</button>
-        <button id="roadviewBtn" onclick="openRoadview()" disabled>로드뷰</button>
       </div>
     </div>
 
@@ -95,6 +85,34 @@
 
     <div class="map-wrapper">
       <div id="map"></div>
+
+      <!-- 지도 안 좌측 상단: 지도 유형 버튼 -->
+      <div id="mapTypeControls" style="
+        position:absolute;
+        top:12px;
+        left:12px;
+        z-index:20;
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
+      ">
+        <button type="button" class="map-ui-btn active" id="mapTypeNormalBtn" onclick="changeMapType('normal')">일반지도</button>
+        <button type="button" class="map-ui-btn" id="mapTypeSatelliteBtn" onclick="changeMapType('satellite')">위성지도</button>
+        <button type="button" class="map-ui-btn" id="mapTypeHybridBtn" onclick="changeMapType('hybrid')">지형지도</button>
+      </div>
+
+      <!-- 지도 안 우측 상단: 로드뷰 버튼 -->
+      <div id="mapActionControls" style="
+        position:absolute;
+        top:12px;
+        right:12px;
+        z-index:20;
+        display:flex;
+        flex-direction:column;
+        gap:8px;
+      ">
+        <button type="button" class="map-ui-btn" id="roadviewBtn" onclick="openRoadview()" disabled>로드뷰</button>
+      </div>
 
       <div class="legend">
         <div class="legend-item">
@@ -172,21 +190,38 @@
       });
     }
 
+    function setMapTypeButtonState(type) {
+      document.getElementById("mapTypeNormalBtn").classList.remove("active");
+      document.getElementById("mapTypeSatelliteBtn").classList.remove("active");
+      document.getElementById("mapTypeHybridBtn").classList.remove("active");
+
+      if (type === "normal") {
+        document.getElementById("mapTypeNormalBtn").classList.add("active");
+      } else if (type === "satellite") {
+        document.getElementById("mapTypeSatelliteBtn").classList.add("active");
+      } else if (type === "hybrid") {
+        document.getElementById("mapTypeHybridBtn").classList.add("active");
+      }
+    }
+
     function changeMapType(type) {
       if (!map) return;
 
       if (type === "normal") {
         map.setMapTypeId(naver.maps.MapTypeId.NORMAL);
+        setMapTypeButtonState("normal");
         return;
       }
 
       if (type === "satellite") {
         map.setMapTypeId(naver.maps.MapTypeId.SATELLITE);
+        setMapTypeButtonState("satellite");
         return;
       }
 
       if (type === "hybrid") {
         map.setMapTypeId(naver.maps.MapTypeId.HYBRID);
+        setMapTypeButtonState("hybrid");
       }
     }
 
@@ -198,9 +233,14 @@
 
       const lat = Number(currentResultLat);
       const lng = Number(currentResultLng);
-      const title = encodeURIComponent(currentPoleNo || "전주");
 
-      const url = `https://map.naver.com/v5/directions/-/-/${lng},${lat},${title}?c=${lng},${lat},17,0,0,0,dh`;
+      const destinationLabel = currentPoleNo
+        ? `${currentPoleNo}${currentResultIsEstimated ? " (추정좌표)" : " (실좌표)"}`
+        : "전주";
+
+      const url =
+        `https://map.naver.com/v5/directions/-/-/${lng},${lat},${encodeURIComponent(destinationLabel)}?c=${lng},${lat},17,0,0,0,dh`;
+
       window.open(url, "_blank");
     }
 
@@ -886,6 +926,7 @@
     document.addEventListener("DOMContentLoaded", function () {
       initMap();
       setNavigationButtonsEnabled(false);
+      setMapTypeButtonState("normal");
     });
   </script>
 </body>
