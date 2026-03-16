@@ -27,6 +27,15 @@
           </select>
         </div>
 
+        <div class="full">
+          <label for="mapTypeSelect">지도 유형</label>
+          <select id="mapTypeSelect" onchange="changeMapType(this.value)">
+            <option value="normal" selected>일반 지도</option>
+            <option value="satellite">위성 지도</option>
+            <option value="hybrid">위성 + 도로</option>
+          </select>
+        </div>
+
         <input id="poleInput" class="full" placeholder="전주번호 입력 (예: 8927Y621 또는 88891291)" />
       </div>
 
@@ -36,6 +45,8 @@
 
       <div class="button-row" style="margin-top:10px;">
         <button id="searchBtn" onclick="searchPole()">조회</button>
+        <button id="navBtn" onclick="openNavigation()" disabled>길안내</button>
+        <button id="roadviewBtn" onclick="openRoadview()" disabled>로드뷰</button>
       </div>
     </div>
 
@@ -123,6 +134,10 @@
     let currentGpsLng = null;
     let currentGpsAccuracy = null;
 
+    let currentResultLat = null;
+    let currentResultLng = null;
+    let currentResultIsEstimated = null;
+
     let gpsRequestInProgress = false;
     let headingEnabled = false;
 
@@ -139,7 +154,8 @@
 
       map = new naver.maps.Map("map", {
         center,
-        zoom: 12
+        zoom: 12,
+        mapTypeId: naver.maps.MapTypeId.NORMAL
       });
 
       naver.maps.Event.addListener(map, "click", function (e) {
@@ -154,6 +170,63 @@
         document.getElementById("gpsStatus").textContent =
           "지도 클릭 좌표를 입력칸에 반영했습니다.";
       });
+    }
+
+    function changeMapType(type) {
+      if (!map) return;
+
+      if (type === "normal") {
+        map.setMapTypeId(naver.maps.MapTypeId.NORMAL);
+        return;
+      }
+
+      if (type === "satellite") {
+        map.setMapTypeId(naver.maps.MapTypeId.SATELLITE);
+        return;
+      }
+
+      if (type === "hybrid") {
+        map.setMapTypeId(naver.maps.MapTypeId.HYBRID);
+      }
+    }
+
+    function openNavigation() {
+      if (currentResultLat === null || currentResultLng === null) {
+        alert("먼저 전주를 조회하세요.");
+        return;
+      }
+
+      const lat = Number(currentResultLat);
+      const lng = Number(currentResultLng);
+      const title = encodeURIComponent(currentPoleNo || "전주");
+
+      const url = `https://map.naver.com/v5/directions/-/-/${lng},${lat},${title}?c=${lng},${lat},17,0,0,0,dh`;
+      window.open(url, "_blank");
+    }
+
+    function openRoadview() {
+      if (currentResultLat === null || currentResultLng === null) {
+        alert("먼저 전주를 조회하세요.");
+        return;
+      }
+
+      const lat = Number(currentResultLat);
+      const lng = Number(currentResultLng);
+
+      const url = `https://map.naver.com/v5/?c=${lng},${lat},18,0,0,0,dh&panorama=on`;
+      window.open(url, "_blank");
+    }
+
+    function setNavigationButtonsEnabled(enabled) {
+      document.getElementById("navBtn").disabled = !enabled;
+      document.getElementById("roadviewBtn").disabled = !enabled;
+    }
+
+    function clearCurrentResultCoordinate() {
+      currentResultLat = null;
+      currentResultLng = null;
+      currentResultIsEstimated = null;
+      setNavigationButtonsEnabled(false);
     }
 
     function hexToRgba(hex, alpha) {
@@ -562,6 +635,7 @@
 
         if (!json.ok) {
           clearResultMarker();
+          clearCurrentResultCoordinate();
           currentPoleNo = null;
           currentOriginCode = null;
           alert([json.error || "조회 실패", json.detail || ""].filter(Boolean).join("\n"));
@@ -578,21 +652,28 @@
         }
 
         if (data.coordinate) {
+          currentResultLat = Number(data.coordinate.latitude);
+          currentResultLng = Number(data.coordinate.longitude);
+          currentResultIsEstimated = !!data.is_estimated;
+          setNavigationButtonsEnabled(true);
+
           renderInfo(data);
 
           setMarker(
-            Number(data.coordinate.latitude),
-            Number(data.coordinate.longitude),
+            currentResultLat,
+            currentResultLng,
             data.pole_no,
             data.is_estimated
           );
         } else {
           clearResultMarker();
+          clearCurrentResultCoordinate();
           renderNoCoordinateGuide(data);
         }
       } catch (err) {
         hideLoading();
         clearResultMarker();
+        clearCurrentResultCoordinate();
         alert("조회 중 오류가 발생했습니다: " + err.message);
       }
     }
@@ -804,6 +885,7 @@
 
     document.addEventListener("DOMContentLoaded", function () {
       initMap();
+      setNavigationButtonsEnabled(false);
     });
   </script>
 </body>
