@@ -306,7 +306,66 @@ button:disabled{
   }
 }
 
+/* ===== 지도 UI 버튼 ===== */
+
+.map-ui-btn{
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #cfcfcf;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.96);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+  white-space: nowrap;
+}
+
+.map-ui-btn:hover{
+  background: #f7f7f7;
+}
+
+.map-ui-btn.active{
+  border-color: #1565c0;
+  box-shadow: 0 0 0 2px rgba(21,101,192,0.12);
+  color: #1565c0;
+  font-weight: bold;
+}
+
+/* ===== Footer ===== */
+
+.siteFooter{
+  margin-top: 24px;
+  border-top: 1px solid #eee;
+  padding: 14px 16px;
+  color: #666;
+  font-size: 12px;
+  background: #fff;
+}
+
+.footerInner{
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.footerLine{
+  display: flex;
+  gap: 10px;
+  line-height: 1.6;
+  flex-wrap: wrap;
+}
+
+.footerLabel{
+  font-weight: 700;
+  color: #444;
+  min-width: 86px;
+}
+
+.footerValue{
+  color: #666;
+}
+
+/* ===== 모바일 ===== */
+
 @media (max-width: 768px){
+
   body{
     padding: 12px;
   }
@@ -340,28 +399,6 @@ button:disabled{
     max-width: none;
   }
 
-.map-ui-btn{
-  padding: 10px 12px;
-  font-size: 14px;
-  border: 1px solid #cfcfcf;
-  border-radius: 10px;
-  background: rgba(255,255,255,0.96);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
-  white-space: nowrap;
-}
-
-.map-ui-btn:hover{
-  background: #f7f7f7;
-}
-
-.map-ui-btn.active{
-  border-color: #1565c0;
-  box-shadow: 0 0 0 2px rgba(21,101,192,0.12);
-  color: #1565c0;
-  font-weight: bold;
-}
-
-@media (max-width: 768px){
   #mapTypeControls{
     top: 10px !important;
     left: 10px !important;
@@ -372,36 +409,5 @@ button:disabled{
     padding: 8px 10px;
     font-size: 13px;
   }
-}
-  /* ===== Footer ===== */
-.siteFooter{
-  margin-top: 24px;
-  border-top: 1px solid #eee;
-  padding: 14px 16px;
-  color: #666;
-  font-size: 12px;
-  background: #fff;
-}
 
-.footerInner{
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-.footerLine{
-  display: flex;
-  gap: 10px;
-  line-height: 1.6;
-  flex-wrap: wrap;
-}
-
-.footerLabel{
-  font-weight: 700;
-  color: #444;
-  min-width: 86px;
-}
-
-.footerValue{
-  color: #666;
-}
 }
