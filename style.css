@@ -13,12 +13,7 @@ body{
 
 h2, h3{
   margin-top: 0;
-}
-
-.search{
-  display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
 }
 
 label{
@@ -64,6 +59,11 @@ select{
   padding-right: 42px;
 }
 
+textarea{
+  resize: vertical;
+  min-height: 90px;
+}
+
 button{
   padding: 12px 16px;
   font-size: 15px;
@@ -71,7 +71,7 @@ button{
   border: 1px solid #bbb;
   border-radius: 6px;
   background: #fff;
-  transition: background 0.15s ease, opacity 0.15s ease;
+  transition: background 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
 }
 
 button:hover{
@@ -85,8 +85,8 @@ button:disabled{
   opacity: 0.9;
 }
 
-#poleInput{
-  flex: 1;
+#searchBtn{
+  min-width: 120px;
 }
 
 .info,
@@ -100,7 +100,7 @@ button:disabled{
 
 .row{
   margin-bottom: 8px;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .row:last-child{
@@ -109,8 +109,9 @@ button:disabled{
 
 .label{
   font-weight: bold;
-  width: 145px;
+  width: 120px;
   display: inline-block;
+  vertical-align: top;
 }
 
 .save-grid{
@@ -139,6 +140,7 @@ button:disabled{
   font-size: 14px;
   color: #555;
   margin-top: 8px;
+  line-height: 1.5;
 }
 
 .helper{
@@ -196,7 +198,7 @@ button:disabled{
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
   font-size: 13px;
   z-index: 10;
-  max-width: 320px;
+  max-width: 260px;
 }
 
 .legend-item{
@@ -263,6 +265,7 @@ button:disabled{
 .guide-text{
   color: #555;
   line-height: 1.5;
+  margin-top: 4px;
 }
 
 .loading-inline{
@@ -308,17 +311,13 @@ button:disabled{
     padding: 12px;
   }
 
-  .search{
-    flex-direction: column;
-  }
-
   .save-grid{
     grid-template-columns: 1fr;
     gap: 10px;
   }
 
   .label{
-    width: 110px;
+    width: 96px;
   }
 
   .button-row{
