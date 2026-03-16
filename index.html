@@ -788,7 +788,7 @@
         alert("먼저 전주번호를 조회하세요.");
         return;
       }
-
+    
       const dept1 = (currentDept1 || document.getElementById("dept1Select").value || "").trim();
       const latitude = parseFloat(document.getElementById("saveLat").value);
       const longitude = parseFloat(document.getElementById("saveLng").value);
@@ -796,25 +796,27 @@
       const accuracy_m = accuracyValue ? parseFloat(accuracyValue) : null;
       const observer_name = document.getElementById("saveObserver").value.trim();
       const memo = document.getElementById("saveMemo").value.trim();
-
+    
       if (!dept1) {
         alert("관할부서 1차 정보가 없습니다. 다시 조회 후 저장하세요.");
         return;
       }
-
+    
       if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
         alert("위도/경도를 입력하세요.");
         return;
       }
-
+    
+      // GPS 정확도 경고 (기존 유지)
       if (!Number.isNaN(accuracy_m) && accuracy_m > 300) {
         const proceed = confirm("현재 GPS 정확도 오차가 매우 큽니다(300m 초과). 그래도 저장하시겠습니까?");
         if (!proceed) return;
-      } else if (!Number.isNaN(accuracy_m) && accuracy_m > 100) {
+      } 
+      else if (!Number.isNaN(accuracy_m) && accuracy_m > 100) {
         const proceed = confirm("현재 GPS 정확도 오차가 큽니다(100m 초과). 저장 전에 재측정을 권장합니다. 계속 저장하시겠습니까?");
         if (!proceed) return;
       }
-
+    
       try {
         const res = await fetch(`${API_BASE}/api/observe`, {
           method: "POST",
@@ -831,13 +833,18 @@
             memo
           })
         });
-
+    
         const json = await res.json();
-
-        
+    
+        // ⭐ 핵심 추가 부분
+        if (!res.ok || !json.ok) {
+          throw new Error(json.error || json.detail || "좌표 저장 실패");
+        }
+    
         alert("좌표가 저장되었습니다.");
         await searchPole();
         resetSaveForm();
+    
       } catch (err) {
         alert("저장 중 오류가 발생했습니다: " + err.message);
       }
