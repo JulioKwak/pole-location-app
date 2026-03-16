@@ -340,7 +340,7 @@ button:disabled{
     max-width: none;
   }
 
-  .map-ui-btn{
+.map-ui-btn{
   padding: 10px 12px;
   font-size: 14px;
   border: 1px solid #cfcfcf;
@@ -366,11 +366,6 @@ button:disabled{
     top: 10px !important;
     left: 10px !important;
     gap: 6px !important;
-  }
-
-  #mapActionControls{
-    top: 10px !important;
-    right: 10px !important;
   }
 
   .map-ui-btn{
