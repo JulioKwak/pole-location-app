@@ -54,6 +54,10 @@
     <div class="save-box">
       <h3>좌표 등록</h3>
 
+      <div class="helper" id="selectedCandidateStatus">
+        현재 선택 후보: 없음
+      </div>
+
       <div class="save-grid">
         <input id="saveLat" placeholder="위도" />
         <input id="saveLng" placeholder="경도" />
@@ -70,7 +74,10 @@
       </div>
 
       <div class="notice">
-        조회한 전주번호와 적용 원점 기준으로 현재 입력된 좌표를 저장합니다.
+        저장은 조회한 전주번호 + 선택한 후보(후보1~후보4) 기준으로 수행됩니다.
+      </div>
+      <div class="helper">
+        후보를 먼저 선택하면 지도 이동 및 저장 대상 후보가 함께 변경됩니다.
       </div>
       <div class="helper">
         지도 클릭 시 위도/경도가 자동 입력됩니다.
@@ -86,7 +93,6 @@
     <div class="map-wrapper">
       <div id="map"></div>
 
-      <!-- 지도 안 좌측 상단: 지도 유형 버튼 -->
       <div id="mapTypeControls" style="
         position:absolute;
         top:12px;
@@ -103,11 +109,15 @@
       <div class="legend">
         <div class="legend-item">
           <span class="legend-dot real"></span>
-          실좌표
+          실좌표 후보
         </div>
         <div class="legend-item">
           <span class="legend-dot estimated"></span>
-          추정 좌표
+          추정 후보
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot selected"></span>
+          현재 선택 후보
         </div>
         <div class="legend-item">
           <span class="legend-dot gps"></span>
@@ -125,10 +135,13 @@
     const API_BASE = "https://pole-location-api.junho-9ba.workers.dev";
 
     let map;
-    let marker;
     let clickMarker;
     let gpsMarker;
     let gpsAccuracyCircle;
+
+    let candidateMarkers = [];
+    let currentCandidates = [];
+    let currentSelectedCandidateNo = null;
 
     let currentPoleNo = null;
     let currentOriginCode = null;
@@ -151,6 +164,13 @@
       "2": "원점2 (강원 태백)",
       "3": "원점3 (전남 담양)",
       "4": "원점4 (경남 양산)"
+    };
+
+    const QUADRANT_LABELS = {
+      top_left: "좌상",
+      top_right: "우상",
+      bottom_left: "좌하",
+      bottom_right: "우하"
     };
 
     function initMap() {
@@ -204,23 +224,23 @@
 
     function openNavigation() {
       if (currentResultLat === null || currentResultLng === null) {
-        alert("먼저 전주를 조회하세요.");
+        alert("먼저 후보를 선택하세요.");
         return;
       }
 
       const lat = Number(currentResultLat);
       const lng = Number(currentResultLng);
 
-      const destinationLabel = currentPoleNo
-        ? `${currentPoleNo}${currentResultIsEstimated ? " (추정좌표)" : " (실좌표)"}`
-        : "전주";
+      const selectedCandidate = getSelectedCandidate();
+      const destinationLabel = selectedCandidate
+        ? `${currentPoleNo} ${selectedCandidate.label} (${buildQuadrantText(selectedCandidate.quadrant)})`
+        : (currentPoleNo || "전주");
 
       const appName = window.location.origin || "pole-location-app";
       const encodedName = encodeURIComponent(destinationLabel);
       const encodedAppName = encodeURIComponent(appName);
       const ua = navigator.userAgent || "";
 
-      // Android: intent 스킴
       if (/Android/i.test(ua)) {
         const intentUrl =
           `intent://route/car?dlat=${lat}&dlng=${lng}&dname=${encodedName}&appname=${encodedAppName}` +
@@ -230,14 +250,12 @@
         return;
       }
 
-      // iOS 및 기타: nmap 스킴
       const nmapUrl =
         `nmap://route/car?dlat=${lat}&dlng=${lng}&dname=${encodedName}&appname=${encodedAppName}`;
 
       const clickedAt = Date.now();
       window.location.href = nmapUrl;
 
-      // iOS 앱 미설치 fallback
       if (/iPhone|iPad|iPod/i.test(ua)) {
         setTimeout(function () {
           if (Date.now() - clickedAt < 2000) {
@@ -255,7 +273,9 @@
       currentResultLat = null;
       currentResultLng = null;
       currentResultIsEstimated = null;
+      currentSelectedCandidateNo = null;
       setNavigationButtonsEnabled(false);
+      updateSelectedCandidateStatus();
     }
 
     function hexToRgba(hex, alpha) {
@@ -343,6 +363,50 @@
       };
     }
 
+    function createCandidateMarkerIcon(label, color, selected = false) {
+      const ringColor = selected ? "#7b1fa2" : color;
+      const haloColor = selected ? "#7b1fa2" : color;
+
+      return {
+        content: `
+          <div style="position:relative;width:44px;height:54px;">
+            <div style="
+              position:absolute;
+              left:50%;
+              top:0;
+              transform:translateX(-50%);
+              min-width:36px;
+              padding:2px 6px;
+              background:#ffffff;
+              border:2px solid ${ringColor};
+              color:${ringColor};
+              border-radius:12px;
+              text-align:center;
+              font-size:11px;
+              font-weight:700;
+              line-height:1.2;
+              box-shadow:0 1px 4px rgba(0,0,0,0.18);
+            ">${label}</div>
+            <div style="
+              position:absolute;
+              left:50%;
+              bottom:2px;
+              transform:translateX(-50%);
+              width:18px;
+              height:18px;
+              background:${color};
+              border-radius:50%;
+              border:4px solid white;
+              box-shadow:
+                0 0 0 6px ${hexToRgba(haloColor, 0.14)},
+                0 1px 4px rgba(0,0,0,0.35);
+            "></div>
+          </div>
+        `,
+        anchor: new naver.maps.Point(22, 52)
+      };
+    }
+
     function clearClickMarker() {
       if (clickMarker) {
         clickMarker.setMap(null);
@@ -362,39 +426,11 @@
       }
     }
 
-    function clearResultMarker() {
-      if (marker) {
-        marker.setMap(null);
-        marker = null;
-      }
-    }
-
-    function setMarker(lat, lng, title, isEstimated) {
-      const pos = new naver.maps.LatLng(lat, lng);
-
-      if (marker) {
+    function clearCandidateMarkers() {
+      for (const marker of candidateMarkers) {
         marker.setMap(null);
       }
-
-      const color = isEstimated ? "#ef6c00" : "#1565c0";
-
-      marker = new naver.maps.Marker({
-        position: pos,
-        map: map,
-        title: title,
-        icon: createPinIcon(color, {
-          withArrow: false,
-          size: 30,
-          dotSize: 18,
-          borderSize: 4,
-          haloSize: 8,
-          anchorX: 15,
-          anchorY: 15
-        })
-      });
-
-      map.setCenter(pos);
-      map.setZoom(17);
+      candidateMarkers = [];
     }
 
     function setClickMarker(lat, lng) {
@@ -471,47 +507,166 @@
       return `원점${origin.code} (${origin.name})`;
     }
 
-    function renderInfo(data) {
-      const box = document.getElementById("infoBox");
-      const selectedOrigin = data?.estimation_detail?.origin || null;
+    function buildQuadrantText(quadrant) {
+      return QUADRANT_LABELS[quadrant] || quadrant || "-";
+    }
 
-      const sourceBadge = data.coordinate
-        ? (
-          data.is_estimated
-            ? `<span class="badge badge-est">추정 좌표</span>`
-            : `<span class="badge badge-exact">실좌표</span>`
-        )
-        : "";
+    function getSelectedCandidate() {
+      return currentCandidates.find(c => c.candidate_no === currentSelectedCandidateNo) || null;
+    }
 
-      let coordHtml = `<div class="row">좌표 없음</div>`;
+    function updateSelectedCandidateStatus() {
+      const el = document.getElementById("selectedCandidateStatus");
+      const selected = getSelectedCandidate();
 
-      if (data.coordinate) {
-        coordHtml = `
-          <div class="row"><span class="label">위도</span>${data.coordinate.latitude}</div>
-          <div class="row"><span class="label">경도</span>${data.coordinate.longitude}</div>
-          <div class="row"><span class="label">좌표출처</span>${data.coordinate_source || "-"}</div>
-          <div class="row"><span class="label">선택원점</span>${buildOriginText(selectedOrigin)}</div>
-          ${
-            data.is_estimated
-              ? `
-                <div class="row"><span class="label">추정신뢰도</span>${data.coordinate.confidence_score ?? "-"}</div>
-                <div class="row"><span class="label">후보 개수</span>${data.coordinate.candidate_count ?? "-"}</div>
-                <div class="row"><span class="label">보정적용</span>${data.estimation_detail?.correction_applied ? "예" : "아니오"}</div>
-              `
-              : ""
-          }
-        `;
+      if (!selected) {
+        el.textContent = "현재 선택 후보: 없음";
+        return;
       }
 
+      const sourceText = selected.is_exact_observation ? "실좌표" : "추정좌표";
+      el.textContent = `현재 선택 후보: ${selected.label} (${buildQuadrantText(selected.quadrant)}) / ${sourceText}`;
+    }
+
+    function getCandidateColor(candidate, selected = false) {
+      if (selected) return "#7b1fa2";
+      return candidate.is_exact_observation ? "#1565c0" : "#ef6c00";
+    }
+
+    function setCandidateMarkers(candidates) {
+      clearCandidateMarkers();
+
+      candidateMarkers = candidates.map((candidate) => {
+        const pos = new naver.maps.LatLng(
+          candidate.coordinate.latitude,
+          candidate.coordinate.longitude
+        );
+
+        const selected = candidate.candidate_no === currentSelectedCandidateNo;
+        const color = getCandidateColor(candidate, selected);
+
+        const marker = new naver.maps.Marker({
+          position: pos,
+          map: map,
+          title: `${candidate.label} (${buildQuadrantText(candidate.quadrant)})`,
+          icon: createCandidateMarkerIcon(candidate.label, color, selected)
+        });
+
+        naver.maps.Event.addListener(marker, "click", function () {
+          selectCandidate(candidate.candidate_no);
+        });
+
+        return marker;
+      });
+    }
+
+    function refreshCandidateMarkerStyles() {
+      for (let i = 0; i < candidateMarkers.length; i++) {
+        const marker = candidateMarkers[i];
+        const candidate = currentCandidates[i];
+        if (!marker || !candidate) continue;
+
+        const selected = candidate.candidate_no === currentSelectedCandidateNo;
+        const color = getCandidateColor(candidate, selected);
+
+        marker.setIcon(createCandidateMarkerIcon(candidate.label, color, selected));
+      }
+    }
+
+    function zoomToCandidate(candidateNo) {
+      const candidate = currentCandidates.find(c => c.candidate_no === candidateNo);
+      if (!candidate || !map) return;
+
+      const pos = new naver.maps.LatLng(
+        candidate.coordinate.latitude,
+        candidate.coordinate.longitude
+      );
+
+      map.setCenter(pos);
+      map.setZoom(18);
+    }
+
+    function selectCandidate(candidateNo) {
+      const candidate = currentCandidates.find(c => c.candidate_no === candidateNo);
+      if (!candidate) return;
+
+      currentSelectedCandidateNo = candidateNo;
+      currentResultLat = Number(candidate.coordinate.latitude);
+      currentResultLng = Number(candidate.coordinate.longitude);
+      currentResultIsEstimated = !!candidate.is_estimated;
+
+      document.getElementById("saveLat").value = Number(candidate.coordinate.latitude).toFixed(7);
+      document.getElementById("saveLng").value = Number(candidate.coordinate.longitude).toFixed(7);
+
+      renderInfo(currentLastData);
+      refreshCandidateMarkerStyles();
+      zoomToCandidate(candidateNo);
+      setNavigationButtonsEnabled(true);
+      updateSelectedCandidateStatus();
+    }
+
+    let currentLastData = null;
+
+    function renderInfo(data) {
+      currentLastData = data;
+      const box = document.getElementById("infoBox");
+
+      const selectedCandidate = getSelectedCandidate();
+      const selectedInfo = selectedCandidate
+        ? `
+          <div class="row"><span class="label">선택후보</span>${selectedCandidate.label} (${buildQuadrantText(selectedCandidate.quadrant)})</div>
+          <div class="row"><span class="label">선택좌표</span>${selectedCandidate.coordinate.latitude}, ${selectedCandidate.coordinate.longitude}</div>
+          <div class="row"><span class="label">좌표출처</span>${selectedCandidate.coordinate_source}</div>
+        `
+        : `<div class="row"><span class="label">선택후보</span>없음</div>`;
+
+      const candidatesHtml = (data.candidates || []).map((candidate) => {
+        const badge = candidate.is_exact_observation
+          ? `<span class="badge badge-exact">실좌표</span>`
+          : `<span class="badge badge-est">추정</span>`;
+
+        const selectedClass = candidate.candidate_no === currentSelectedCandidateNo
+          ? "candidate-card active"
+          : "candidate-card";
+
+        const distText = typeof candidate.distance_from_current_m === "number"
+          ? `${candidate.distance_from_current_m}m`
+          : "-";
+
+        const correctionText = candidate.is_exact_observation
+          ? "실측 저장됨"
+          : (
+              candidate.correction_stage
+                ? `${candidate.correction_stage} 보정 (${candidate.matched_count || 0}건)`
+                : "보정 없음"
+            );
+
+        return `
+          <button type="button" class="${selectedClass}" onclick="selectCandidate(${candidate.candidate_no})">
+            <div class="candidate-head">
+              <div class="candidate-title">${candidate.label}</div>
+              <div>${badge}</div>
+            </div>
+            <div class="candidate-sub">${buildQuadrantText(candidate.quadrant)}</div>
+            <div class="candidate-coord">${candidate.coordinate.latitude}, ${candidate.coordinate.longitude}</div>
+            <div class="candidate-meta">현재 GPS 거리: ${distText}</div>
+            <div class="candidate-meta">보정 상태: ${correctionText}</div>
+          </button>
+        `;
+      }).join("");
+
       box.innerHTML = `
-        <div class="row"><span class="label">전주번호</span>${data.pole_no} ${sourceBadge}</div>
-        ${coordHtml}
+        <div class="row"><span class="label">전주번호</span>${data.pole_no}</div>
+        <div class="row"><span class="label">적용원점</span>${buildOriginText(data.origin)}</div>
+        ${selectedInfo}
+        <div class="candidate-wrap">
+          ${candidatesHtml || `<div class="guide-text">후보 정보가 없습니다.</div>`}
+        </div>
       `;
     }
 
     function renderNoCoordinateGuide(data) {
       const box = document.getElementById("infoBox");
-      const selectedOrigin = data?.estimation_detail?.origin || null;
       const reason = data?.estimation_detail?.reason || "";
 
       let reasonText = "전주번호 형식을 다시 확인하세요.";
@@ -526,8 +681,8 @@
 
       box.innerHTML = `
         <div class="row"><span class="label">전주번호</span>${data.pole_no}</div>
-        <div class="row"><span class="label">선택원점</span>${buildOriginText(selectedOrigin)}</div>
-        <div class="guide-title">추정 좌표를 계산하지 못했습니다.</div>
+        <div class="row"><span class="label">적용원점</span>${buildOriginText(data.origin)}</div>
+        <div class="guide-title">후보 좌표를 계산하지 못했습니다.</div>
         <div class="guide-text">${reasonText}</div>
       `;
     }
@@ -663,45 +818,38 @@
         hideLoading();
 
         if (!json.ok) {
-          clearResultMarker();
+          clearCandidateMarkers();
           clearCurrentResultCoordinate();
           currentPoleNo = null;
           currentOriginCode = null;
+          currentCandidates = [];
           alert([json.error || "조회 실패", json.detail || ""].filter(Boolean).join("\n"));
           return;
         }
 
         const data = json.data;
         currentPoleNo = data.pole_no;
-        currentOriginCode = data?.estimation_detail?.origin?.code || null;
+        currentOriginCode = data?.origin?.code || null;
+        currentCandidates = data.candidates || [];
+        currentSelectedCandidateNo = data.recommended_candidate_no || (currentCandidates[0]?.candidate_no ?? null);
 
-        if (data?.estimation_detail?.origin) {
+        if (data?.origin) {
           document.getElementById("originStatus").textContent =
-            `조회 적용 원점: ${buildOriginText(data.estimation_detail.origin)}`;
+            `조회 적용 원점: ${buildOriginText(data.origin)}`;
         }
 
-        if (data.coordinate) {
-          currentResultLat = Number(data.coordinate.latitude);
-          currentResultLng = Number(data.coordinate.longitude);
-          currentResultIsEstimated = !!data.is_estimated;
-          setNavigationButtonsEnabled(true);
-
+        if (currentCandidates.length > 0) {
           renderInfo(data);
-
-          setMarker(
-            currentResultLat,
-            currentResultLng,
-            data.pole_no,
-            data.is_estimated
-          );
+          setCandidateMarkers(currentCandidates);
+          selectCandidate(currentSelectedCandidateNo);
         } else {
-          clearResultMarker();
+          clearCandidateMarkers();
           clearCurrentResultCoordinate();
           renderNoCoordinateGuide(data);
         }
       } catch (err) {
         hideLoading();
-        clearResultMarker();
+        clearCandidateMarkers();
         clearCurrentResultCoordinate();
         alert("조회 중 오류가 발생했습니다: " + err.message);
       }
@@ -837,6 +985,11 @@
         return;
       }
 
+      if (![1, 2, 3, 4].includes(Number(currentSelectedCandidateNo))) {
+        alert("후보1~후보4 중 하나를 먼저 선택하세요.");
+        return;
+      }
+
       const latitude = parseFloat(document.getElementById("saveLat").value);
       const longitude = parseFloat(document.getElementById("saveLng").value);
       const accuracyValue = document.getElementById("saveAccuracy").value.trim();
@@ -866,6 +1019,7 @@
           body: JSON.stringify({
             pole_no: currentPoleNo,
             origin_code: currentOriginCode,
+            candidate_no: currentSelectedCandidateNo,
             latitude,
             longitude,
             accuracy_m,
@@ -885,7 +1039,7 @@
           );
         }
 
-        alert("좌표가 저장되었습니다.");
+        alert(`${currentPoleNo} ${currentSelectedCandidateNo}번 후보 좌표가 저장되었습니다.`);
         await searchPole();
         resetSaveForm();
       } catch (err) {
@@ -916,8 +1070,10 @@
       initMap();
       setNavigationButtonsEnabled(false);
       setMapTypeButtonState("normal");
+      updateSelectedCandidateStatus();
     });
   </script>
+
   <footer class="siteFooter">
     <div class="footerInner">
       <div class="footerLine">
