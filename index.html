@@ -120,6 +120,10 @@
           현재 선택 후보
         </div>
         <div class="legend-item">
+          <span class="legend-dot origin"></span>
+          원점 / 사분면 기준선
+        </div>
+        <div class="legend-item">
           <span class="legend-dot gps"></span>
           현재 GPS 위치
         </div>
@@ -138,8 +142,12 @@
     let clickMarker;
     let gpsMarker;
     let gpsAccuracyCircle;
+    let originMarker = null;
 
     let candidateMarkers = [];
+    let originCrossLines = [];
+    let quadrantLabels = [];
+
     let currentCandidates = [];
     let currentSelectedCandidateNo = null;
 
@@ -157,6 +165,7 @@
 
     let gpsRequestInProgress = false;
     let headingEnabled = false;
+    let currentLastData = null;
 
     const ORIGIN_LABELS = {
       auto: "자동",
@@ -433,6 +442,115 @@
       candidateMarkers = [];
     }
 
+    function clearOriginGuide() {
+      for (const line of originCrossLines) {
+        line.setMap(null);
+      }
+      originCrossLines = [];
+
+      for (const marker of quadrantLabels) {
+        marker.setMap(null);
+      }
+      quadrantLabels = [];
+
+      if (originMarker) {
+        originMarker.setMap(null);
+        originMarker = null;
+      }
+    }
+
+    function createTextMarker(lat, lng, text, color = "#7b1fa2") {
+      return new naver.maps.Marker({
+        position: new naver.maps.LatLng(lat, lng),
+        map,
+        icon: {
+          content: `
+            <div style="
+              padding:4px 8px;
+              background:rgba(255,255,255,0.96);
+              border:2px solid ${color};
+              color:${color};
+              border-radius:12px;
+              font-size:12px;
+              font-weight:700;
+              white-space:nowrap;
+              box-shadow:0 1px 4px rgba(0,0,0,0.18);
+            ">${text}</div>
+          `,
+          anchor: new naver.maps.Point(24, 12)
+        }
+      });
+    }
+
+    function drawOriginGuide(origin) {
+      clearOriginGuide();
+      if (!origin || !map) return;
+
+      const originLat = Number(origin.lat);
+      const originLng = Number(origin.lng);
+
+      const horizontalHalfLng = 2.2;
+      const verticalHalfLat = 1.8;
+
+      const hLine = new naver.maps.Polyline({
+        map,
+        path: [
+          new naver.maps.LatLng(originLat, originLng - horizontalHalfLng),
+          new naver.maps.LatLng(originLat, originLng + horizontalHalfLng)
+        ],
+        strokeColor: "#7b1fa2",
+        strokeOpacity: 0.65,
+        strokeWeight: 2,
+        strokeStyle: "shortdash"
+      });
+
+      const vLine = new naver.maps.Polyline({
+        map,
+        path: [
+          new naver.maps.LatLng(originLat - verticalHalfLat, originLng),
+          new naver.maps.LatLng(originLat + verticalHalfLat, originLng)
+        ],
+        strokeColor: "#7b1fa2",
+        strokeOpacity: 0.65,
+        strokeWeight: 2,
+        strokeStyle: "shortdash"
+      });
+
+      originCrossLines.push(hLine, vLine);
+
+      originMarker = new naver.maps.Marker({
+        position: new naver.maps.LatLng(originLat, originLng),
+        map,
+        title: `원점${origin.code} (${origin.name})`,
+        icon: {
+          content: `
+            <div style="position:relative;width:28px;height:28px;">
+              <div style="
+                position:absolute;
+                left:50%;
+                top:50%;
+                transform:translate(-50%,-50%);
+                width:14px;
+                height:14px;
+                background:#7b1fa2;
+                border:4px solid white;
+                border-radius:50%;
+                box-shadow:0 0 0 6px rgba(123,31,162,0.14), 0 1px 4px rgba(0,0,0,0.35);
+              "></div>
+            </div>
+          `,
+          anchor: new naver.maps.Point(14, 14)
+        }
+      });
+
+      quadrantLabels.push(
+        createTextMarker(originLat + 0.45, originLng - 0.55, "좌상"),
+        createTextMarker(originLat + 0.45, originLng + 0.55, "우상"),
+        createTextMarker(originLat - 0.45, originLng - 0.55, "좌하"),
+        createTextMarker(originLat - 0.45, originLng + 0.55, "우하")
+      );
+    }
+
     function setClickMarker(lat, lng) {
       const pos = new naver.maps.LatLng(lat, lng);
 
@@ -604,8 +722,6 @@
       setNavigationButtonsEnabled(true);
       updateSelectedCandidateStatus();
     }
-
-    let currentLastData = null;
 
     function renderInfo(data) {
       currentLastData = data;
@@ -819,6 +935,7 @@
 
         if (!json.ok) {
           clearCandidateMarkers();
+          clearOriginGuide();
           clearCurrentResultCoordinate();
           currentPoleNo = null;
           currentOriginCode = null;
@@ -836,6 +953,7 @@
         if (data?.origin) {
           document.getElementById("originStatus").textContent =
             `조회 적용 원점: ${buildOriginText(data.origin)}`;
+          drawOriginGuide(data.origin);
         }
 
         if (currentCandidates.length > 0) {
@@ -844,12 +962,14 @@
           selectCandidate(currentSelectedCandidateNo);
         } else {
           clearCandidateMarkers();
+          clearOriginGuide();
           clearCurrentResultCoordinate();
           renderNoCoordinateGuide(data);
         }
       } catch (err) {
         hideLoading();
         clearCandidateMarkers();
+        clearOriginGuide();
         clearCurrentResultCoordinate();
         alert("조회 중 오류가 발생했습니다: " + err.message);
       }
