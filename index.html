@@ -1215,14 +1215,21 @@
       window.removeEventListener("deviceorientationabsolute", handleOrientation, true);
 
       window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+      window.addEventListener("deviceorientation", handleOrientation, true);
 
       headingEnabled = true;
     }
 
     function handleOrientation(event) {
-      const rawHeading = event.webkitCompassHeading ?? event.alpha;
+      let rawHeading = null;
 
-      if (typeof rawHeading !== "number" || Number.isNaN(rawHeading)) {
+      if (typeof event.webkitCompassHeading === "number" && !Number.isNaN(event.webkitCompassHeading)) {
+        rawHeading = event.webkitCompassHeading;
+      } else if (typeof event.alpha === "number" && !Number.isNaN(event.alpha)) {
+        rawHeading = event.alpha;
+      }
+
+      if (rawHeading === null) {
         return;
       }
 
