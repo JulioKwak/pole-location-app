@@ -159,6 +159,9 @@
       resolver: null
     };
 
+    let headingUpdateQueued = false;
+    let lastRenderedHeading = null;
+
     function nl2br(text) {
       return String(text || "").replace(/\n/g, "<br>");
     }
@@ -703,26 +706,29 @@
 
     function setGpsMarker(lat, lng, heading = null) {
       const pos = new naver.maps.LatLng(lat, lng);
+      const icon = createPinIcon("#e53935", {
+        heading,
+        withArrow: true,
+        size: 30,
+        dotSize: 18,
+        borderSize: 4,
+        haloSize: 8,
+        anchorX: 15,
+        anchorY: 15
+      });
 
-      if (gpsMarker) {
-        gpsMarker.setMap(null);
+      if (!gpsMarker) {
+        gpsMarker = new naver.maps.Marker({
+          position: pos,
+          map: map,
+          title: "현재 GPS 위치",
+          icon
+        });
+        return;
       }
 
-      gpsMarker = new naver.maps.Marker({
-        position: pos,
-        map: map,
-        title: "현재 GPS 위치",
-        icon: createPinIcon("#e53935", {
-          heading,
-          withArrow: true,
-          size: 30,
-          dotSize: 18,
-          borderSize: 4,
-          haloSize: 8,
-          anchorX: 15,
-          anchorY: 15
-        })
-      });
+      gpsMarker.setPosition(pos);
+      gpsMarker.setIcon(icon);
     }
 
     function setGpsAccuracyCircle(lat, lng, accuracy) {
@@ -742,6 +748,15 @@
         strokeOpacity: 0.28,
         strokeWeight: 1
       });
+    }
+
+    function normalizeHeading(value) {
+      return ((value % 360) + 360) % 360;
+    }
+
+    function headingDiff(a, b) {
+      const diff = Math.abs(a - b) % 360;
+      return diff > 180 ? 360 - diff : diff;
     }
 
     function buildOriginText(origin) {
@@ -984,6 +999,8 @@
       currentGpsLng = null;
       currentGpsAccuracy = null;
       currentHeading = null;
+      headingUpdateQueued = false;
+      lastRenderedHeading = null;
 
       clearClickMarker();
       clearGpsVisuals();
@@ -1133,6 +1150,7 @@
           currentGpsLat = lat;
           currentGpsLng = lng;
           currentGpsAccuracy = acc;
+          lastRenderedHeading = null;
 
           clearClickMarker();
 
@@ -1193,32 +1211,59 @@
         }
       }
 
-      window.removeEventListener("deviceorientation", handleOrientation);
-      window.removeEventListener("deviceorientationabsolute", handleOrientation);
+      window.removeEventListener("deviceorientation", handleOrientation, true);
+      window.removeEventListener("deviceorientationabsolute", handleOrientation, true);
 
-      window.addEventListener("deviceorientation", handleOrientation, true);
       window.addEventListener("deviceorientationabsolute", handleOrientation, true);
 
       headingEnabled = true;
     }
 
     function handleOrientation(event) {
-      const heading = event.webkitCompassHeading ?? event.alpha;
+      const rawHeading = event.webkitCompassHeading ?? event.alpha;
 
-      if (typeof heading !== "number" || Number.isNaN(heading)) {
+      if (typeof rawHeading !== "number" || Number.isNaN(rawHeading)) {
         return;
       }
 
-      currentHeading = heading;
+      const nextHeading = normalizeHeading(rawHeading);
 
-      if (currentGpsLat !== null && currentGpsLng !== null) {
-        setGpsMarker(currentGpsLat, currentGpsLng, currentHeading);
+      if (
+        typeof currentHeading === "number" &&
+        !Number.isNaN(currentHeading) &&
+        headingDiff(currentHeading, nextHeading) < 5
+      ) {
+        return;
       }
 
-      const accText = currentGpsAccuracy ? `정확도 약 ${Math.round(currentGpsAccuracy)}m` : "정확도 확인 불가";
+      currentHeading = nextHeading;
 
-      document.getElementById("gpsStatus").textContent =
-        `현재 GPS 위치 갱신 완료 · ${accText} / 방향 ${Math.round(currentHeading)}°`;
+      if (headingUpdateQueued) {
+        return;
+      }
+
+      headingUpdateQueued = true;
+
+      requestAnimationFrame(() => {
+        headingUpdateQueued = false;
+
+        if (currentGpsLat !== null && currentGpsLng !== null) {
+          if (
+            lastRenderedHeading === null ||
+            headingDiff(lastRenderedHeading, currentHeading) >= 5
+          ) {
+            setGpsMarker(currentGpsLat, currentGpsLng, currentHeading);
+            lastRenderedHeading = currentHeading;
+          }
+        }
+
+        const accText = currentGpsAccuracy
+          ? `정확도 약 ${Math.round(currentGpsAccuracy)}m`
+          : "정확도 확인 불가";
+
+        document.getElementById("gpsStatus").textContent =
+          `현재 GPS 위치 갱신 완료 · ${accText} / 방향 ${Math.round(currentHeading)}°`;
+      });
     }
 
     async function saveCoordinate() {
